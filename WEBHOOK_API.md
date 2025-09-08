@@ -1,6 +1,6 @@
 # Документация по Webhook API для AI Interviewer
 
-Версия API: 1.2
+Версия API: 1.3
 
 ## 1. Общая концепция
 
@@ -166,7 +166,9 @@ def verify_signature(request_body_bytes, signature_header):
 
 ```json
 {
-    "description": "# Python-разработчик (Middle/Senior)\n\n## О проекте..."
+    "description": "# Python-разработчик (Middle/Senior)
+
+## О проекте..."
 }
 ```
 
@@ -231,3 +233,43 @@ def verify_signature(request_body_bytes, signature_header):
     "tags": "Python, FastAPI, PostgreSQL, Docker, финтех, работа в команде, CI/CD, разработка API"
 }
 ```
+
+### 4.6 Генерация текста с LLM
+
+Запускает асинхронную задачу для генерации текста с использованием выбранного LLM-провайдера.
+
+- **URL**: `POST /api/v1/llm-providers/webhook/generate`
+- **Метод**: `POST`
+
+**Тело запроса (Request Body):**
+
+```json
+{
+    "webhook_url": "https://your-app.com/webhook-receiver-llm-gen",
+    "prompt": "Напиши короткое стихотворение о весне.",
+    "model_name": "gemma3:4b",
+    "temperature": 0.7
+}
+```
+
+**Структура ответа (Webhook Payload):**
+
+На ваш `webhook_url` придет `POST` запрос с сгенерированным текстом или сообщением об ошибке.
+
+```json
+{
+    "status": "completed",
+    "generated_text": "Весна пришла, ручьи бегут,
+И птицы весело поют.
+Природа оживает вновь,
+Наполнив сердце нам любовь."
+}
+```
+или в случае ошибки:
+```json
+{
+    "status": "failed",
+    "error": "Сообщение об ошибке..."
+}
+```
+**Важно:** Для этого вебхука используется отдельный секрет, который на данный момент захардкожен в коде как `"llm-webhook-secret"`. В будущих версиях он будет вынесен в настройки.
