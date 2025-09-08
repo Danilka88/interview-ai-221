@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки обработки аудио</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--pico-card-border);
+            border-radius: var(--pico-border-radius);
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .slider-group input[type="range"] {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Обработка аудио</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <hgroup>
+            <h2>Настройки обработки аудио</h2>
+            <p>Управляйте параметрами предварительной обработки аудио перед передачей в STT.</p>
+        </hgroup>
+
+        <section class="form-section">
+            <h3>Шумоподавление</h3>
+            <form id="audio-processing-form">
+                <label for="audio-processing-enabled">
+                    <input type="checkbox" id="audio-processing-enabled" name="AUDIO_PROCESSING_ENABLED" role="switch">
+                    Включить шумоподавление
+                </label>
+
+                <div class="slider-group">
+                    <label for="noise-reduction-rate">
+                        <span>Интенсивность шумоподавления:</span>
+                        <span id="noise-reduction-value">0.8</span>
+                    </label>
+                    <input type="range" id="noise-reduction-rate" name="NOISE_REDUCTION_RATE" min="0.0" max="1.0" step="0.05" value="0.8">
+                </div>
+
+                <button type="submit" id="save-settings-btn">Сохранить настройки</button>
+                <p id="status-message" style="margin-top: 1rem;"></p>
+            </form>
+        </section>
+
+        <section class="form-section">
+            <h3>Тестирование</h3>
+            <p>Здесь можно будет добавить функционал для тестирования обработки аудио.</p>
+            <button disabled>Записать и протестировать</button>
+        </section>
+    </main>
+
+    <script>
+        const form = document.getElementById('audio-processing-form');
+        const enabledCheckbox = document.getElementById('audio-processing-enabled');
+        const rateSlider = document.getElementById('noise-reduction-rate');
+        const rateValueSpan = document.getElementById('noise-reduction-value');
+        const statusMessage = document.getElementById('status-message');
+        const saveButton = document.getElementById('save-settings-btn');
+
+        rateSlider.addEventListener('input', () => {
+            rateValueSpan.textContent = rateSlider.value;
+        });
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/v1/audio-processing/config');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const settings = await response.json();
+                enabledCheckbox.checked = settings.AUDIO_PROCESSING_ENABLED;
+                rateSlider.value = settings.NOISE_REDUCTION_RATE;
+                rateValueSpan.textContent = settings.NOISE_REDUCTION_RATE;
+            } catch (error) {
+                statusMessage.textContent = `Ошибка загрузки настроек: ${error.message}`;
+                statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        async function saveSettings(event) {
+            event.preventDefault();
+            saveButton.setAttribute('aria-busy', 'true');
+            saveButton.disabled = true;
+            statusMessage.textContent = 'Сохранение...';
+            statusMessage.style.color = 'var(--pico-muted-color)';
+
+            const settings = {
+                AUDIO_PROCESSING_ENABLED: enabledCheckbox.checked,
+                NOISE_REDUCTION_RATE: parseFloat(rateSlider.value)
+            };
+
+            try {
+                const response = await fetch('/api/v1/audio-processing/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(settings)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                statusMessage.textContent = 'Настройки успешно сохранены!';
+                statusMessage.style.color = 'var(--pico-primary-color)';
+            } catch (error) {
+                statusMessage.textContent = `Ошибка сохранения настроек: ${error.message}`;
+                statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                console.error('Error saving settings:', error);
+            } finally {
+                saveButton.setAttribute('aria-busy', 'false');
+                saveButton.disabled = false;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+        form.addEventListener('submit', saveSettings);
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+    </script>
+</body>
+
+</html>

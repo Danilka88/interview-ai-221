@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки - AI Interviewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+        main.container {
+            margin-top: 1rem;
+        }
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .notice {
+            background-color: var(--pico-card-background-color);
+            border-left: 4px solid var(--pico-primary);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: var(--pico-border-radius);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li><hr></li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li><hr></li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><hr></li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Настройки</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <hgroup>
+            <h2>Настройки распознавания речи</h2>
+            <p>Здесь вы можете выбрать язык для проведения голосового собеседования.</p>
+        </hgroup>
+
+        <article>
+            <label for="language-select">Язык распознавания</label>
+            <select id="language-select">
+                <option value="ru">Русский (Russian)</option>
+                <option value="en-us">Английский (US English)</option>
+                <option value="de">Немецкий (German)</option>
+                <option value="fr">Французский (French)</option>
+                <option value="es">Испанский (Spanish)</option>
+                <option value="pt">Португальский (Portuguese)</option>
+                <option value="zh">Китайский (Chinese)</option>
+                <option value="vn">Вьетнамский (Vietnamese)</option>
+                <option value="it">Итальянский (Italian)</option>
+                <option value="nl">Голландский (Dutch)</option>
+                <option value="ca">Каталонский (Catalan)</option>
+                <option value="ar">Арабский (Arabic)</option>
+                <option value="fa">Персидский (Farsi)</option>
+                <option value="tl-ph">Тагальский (Tagalog)</option>
+                <option value="uk">Украинский (Ukrainian)</option>
+                <option value="kz">Казахский (Kazakh)</option>
+                <option value="tr">Турецкий (Turkish)</option>
+                <option value="hi">Хинди (Hindi)</option>
+            </select>
+            <small>Выбранный язык будет использоваться для распознавания речи во время голосового интервью.</small>
+        </article>
+
+        <div class="notice">
+            <p><strong>Важно:</strong> Для работы выбранного языка (кроме русского) необходимо скачать соответствующую модель и разместить ее в папке <code>vosk-models</code>.</p>
+            <ol>
+                <li>Нажмите на ссылку "Скачать" для нужной модели.</li>
+                <li>Распакуйте архив.</li>
+                <li>Переименуйте распакованную папку в соответствии с кодом языка (например, <code>vosk-model-en-us</code> для английского).</li>
+                <li>Поместите эту папку в директорию <code>vosk-models</code> в корне проекта.</li>
+            </ol>
+        </div>
+
+        <figure>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Язык</th>
+                        <th>Код</th>
+                        <th>Размер модели</th>
+                        <th>Ссылка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Русский</td><td>ru</td><td>~45 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-ru-0.42.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Английский (США)</td><td>en-us</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Немецкий</td><td>de</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-de-0.15.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Французский</td><td>fr</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-fr-0.22.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Испанский</td><td>es</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Португальский</td><td>pt</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Китайский</td><td>zh</td><td>~45 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Вьетнамский</td><td>vn</td><td>~1.2 GB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-vn-0.4.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Итальянский</td><td>it</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-it-0.22.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Голландский</td><td>nl</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-nl-0.22.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Каталонский</td><td>ca</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-ca-0.4.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Арабский</td><td>ar</td><td>~35 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-ar-mgb2-0.4.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Персидский</td><td>fa</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-fa-0.5.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Тагальский</td><td>tl-ph</td><td>~30 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-tl-ph-generic-0.6.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Украинский</td><td>uk</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-uk-v3-small.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Казахский</td><td>kz</td><td>~45 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-kz-0.15.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Турецкий</td><td>tr</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-tr-0.3.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Хинди</td><td>hi</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-hi-0.22.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                </tbody>
+            </table>
+            <small>Полный список моделей доступен на <a href="https://alphacephei.com/vosk/models" target="_blank" rel="noopener noreferrer">официальном сайте Vosk</a>.</small>
+        </figure>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const languageSelect = document.getElementById('language-select');
+            const savedLanguage = localStorage.getItem('selectedLanguage');
+
+            if (savedLanguage) {
+                languageSelect.value = savedLanguage;
+            }
+
+            languageSelect.addEventListener('change', (event) => {
+                localStorage.setItem('selectedLanguage', event.target.value);
+                alert(`Язык распознавания изменен на: ${event.target.options[event.target.selectedIndex].text}`);
+            });
+
+            document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                if (confirm('Вы уверены, что хотите очистить все кэшированные данные? Это также сбросит выбранный язык.')) {
+                    localStorage.clear();
+                    alert('Кэш очищен. Страница будет перезагружена.');
+                    window.location.reload();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

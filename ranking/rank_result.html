@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты отбора</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .candidate-card {
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--pico-primary-background);
+            color: var(--pico-primary-inverse);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .score-circle .score {
+            font-size: 2rem;
+        }
+
+        .score-circle .score-label {
+            font-size: 0.75rem;
+        }
+
+        .keywords-container kbd {
+            background-color: var(--pico-secondary-background);
+            color: var(--pico-secondary-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: var(--pico-border-radius);
+            margin: 0.25rem 0.25rem 0.25rem 0;
+            display: inline-block;
+        }
+
+        .actions .grid {
+            margin: 0;
+        }
+
+        /* Стили для слайдеров */
+        #criteria-section {
+            margin-bottom: 2rem;
+        }
+
+        .weight-slider {
+            margin-bottom: 1rem;
+        }
+
+        .weight-slider label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .weight-slider label .value-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 3: Настройки и прочее -->
+                        <li><a href="/settings">Настройки</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="loading-container">
+            <h2 style="text-align: center;">Анализ резюме</h2>
+            <article aria-busy="true">Идет обработка, это может занять некоторое время...</article>
+        </div>
+
+        <div id="results-container" style="display: none;">
+            <header>
+                <hgroup>
+                    <h2>Топ кандидатов</h2>
+                    <p>Рейтинг составлен на основе анализа резюме и требований вакансии.</p>
+                </hgroup>
+            </header>
+
+            <section id="criteria-section">
+                <details>
+                    <summary>Настроить веса для анализа интервью</summary>
+                    <fieldset id="criteria-weights">
+                        <div class="weight-slider"
+                            data-description="Оценивает знание технологий, языков программирования, фреймворков и инструментов, необходимых для работы.">
+                            <label for="tech_skills">
+                                <span>Технические навыки</span>
+                                <span class="value-wrapper"><output for="tech_skills">40</output>%</span>
+                            </label>
+                            <input type="range" id="tech_skills" name="tech_skills" min="0" max="100" value="40">
+                        </div>
+                        <div class="weight-slider"
+                            data-description="Оценивает способность кандидата ясно излагать мысли, слушать, давать обратную связь и эффективно работать в команде.">
+                            <label for="communication">
+                                <span>Коммуникативные навыки</span>
+                                <span class="value-wrapper"><output for="communication">30</output>%</span>
+                            </label>
+                            <input type="range" id="communication" name="communication" min="0" max="100" value="30">
+                        </div>
+                        <div class="weight-slider"
+                            data-description="Оценивает опыт кандидата в решении практических задач, аналогичных тем, с которыми он столкнется на работе.">
+                            <label for="case_experience">
+                                <span>Опыт решения кейсов</span>
+                                <span class="value-wrapper"><output for="case_experience">20</output>%</span>
+                            </label>
+                            <input type="range" id="case_experience" name="case_experience" min="0" max="100"
+                                value="20">
+                        </div>
+                        <div class="weight-slider"
+                            data-description="Оценивает соответствие ценностей и стиля работы кандидата культуре компании и команды.">
+                            <label for="cultural_fit">
+                                <span>Культурное соответствие</span>
+                                <span class="value-wrapper"><output for="cultural_fit">10</output>%</span>
+                            </label>
+                            <input type="range" id="cultural_fit" name="cultural_fit" min="0" max="100" value="10">
+                        </div>
+                    </fieldset>
+                </details>
+            </section>
+
+            <div id="ranking-list"></div>
+        </div>
+    </main>
+
+    <script>
+        let vacancyData = {};
+        let criteriaWeights = {};
+        let candidatesList = []; // Хранилище для данных кандидатов
+
+        // --- Logic for sliders ---
+        const sliderContainers = Array.from(document.querySelectorAll('.weight-slider'));
+        const sliders = Array.from(document.querySelectorAll('.weight-slider input[type="range"]'));
+        sliders.forEach(slider => {
+            const output = slider.previousElementSibling.querySelector('output');
+            slider.addEventListener('input', () => {
+                output.textContent = slider.value;
+            });
+        });
+
+        function collectWeights() {
+            const weights = {};
+            sliderContainers.forEach(container => {
+                const slider = container.querySelector('input[type="range"]');
+                if (slider) {
+                    weights[slider.id] = {
+                        weight: parseInt(slider.value, 10),
+                        description: container.dataset.description
+                    };
+                }
+            });
+            return weights;
+        }
+
+        function renderKeywords(items) {
+            if (!items || items.length === 0) return '<small>Нет данных.</small>';
+            return items.map(text => `<kbd>${text}</kbd>`).join(' ');
+        }
+
+        function renderRanking(data) {
+            const container = document.getElementById('ranking-list');
+            container.innerHTML = '';
+            if (data && data.ranking && data.ranking.length > 0) {
+                candidatesList = data.ranking; // Сохраняем данные в переменную
+                candidatesList.forEach(candidate => {
+                    const card = document.createElement('article');
+                    card.className = 'candidate-card';
+
+                    let cardContent = '';
+                    if (candidate.score === -1) {
+                        cardContent = `
+                            <div class="score-circle" style="background-color: var(--pico-muted-background); border: 2px dashed var(--pico-muted-border-color);">
+                                <span class="score" style="font-size: 2.5rem; color: var(--pico-muted-color);">!</span>
+                            </div>
+                            <div>
+                                <h4 style="margin-bottom: 0.5rem;">${candidate.filename}</h4>
+                                <p style="margin-bottom: 0.5rem; color: var(--pico-amber-500);"><strong>Сбой анализа ИИ</strong></p>
+                                <p><small>ИИ не смог обработать этот файл. Часто это происходит из-за нестандартного форматирования или структуры документа.</small></p>
+                                <details>
+                                    <summary style="font-size: 0.8rem; cursor: pointer;">Технические детали</summary>
+                                    <p><small><code>${candidate.summary}</code></small></p>
+                                </details>
+                            </div>
+                            <div class="actions">
+                                <div class="grid">
+                                    <button disabled>Голос</button>
+                                    <button class="secondary" disabled>Текст</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        cardContent = `
+                            <div class="score-circle">
+                                <span class="score">${candidate.score || '-'}</span>
+                                <span class="score-label">/ 100</span>
+                            </div>
+                            <div>
+                                <h4 style="margin-bottom: 0.5rem;">${candidate.filename}</h4>
+                                <p style="margin-bottom: 0.5rem;">${candidate.summary || ''}</p>
+                                <div class="keywords-container">
+                                    ${renderKeywords(candidate.keywords)}
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <div class="grid">
+                                    <button data-candidate-id="${candidate.id}" class="start-voice">Голос</button>
+                                    <button data-candidate-id="${candidate.id}" class="secondary start-text">Симуляция</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    card.innerHTML = cardContent;
+                    container.appendChild(card);
+                });
+            } else {
+                container.innerHTML = '<article>Не удалось составить рейтинг кандидатов.</article>';
+            }
+
+            document.getElementById('loading-container').style.display = 'none';
+            document.getElementById('results-container').style.display = 'block';
+        }
+
+        function startInterview(type, resumeData) {
+            const weights = collectWeights(); // Always collect current weights before starting
+            const context = {
+                candidate_id: resumeData.id, // Pass candidate ID
+                vacancy_text: vacancyData.vacancy_text,
+                generated_questions: vacancyData.generated_questions,
+                resume_text: resumeData.resume_text,
+                weights: weights // Add weights to the context
+            };
+            localStorage.setItem('interviewAnalysisData', JSON.stringify(context)); // Use the key for the final analysis page
+            window.location.href = type === 'voice' ? '/rank/interview' : '/rank/simulation';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.start-voice')) {
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const resumeData = candidatesList.find(c => c.id === candidateId);
+                startInterview('voice', resumeData);
+            }
+            if (e.target.matches('.start-text')) {
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const resumeData = candidatesList.find(c => c.id === candidateId);
+                startInterview('text', resumeData);
+            }
+        });
+
+        window.addEventListener('load', () => {
+            const storedData = localStorage.getItem('rankResultData');
+            if (storedData) {
+                const data = JSON.parse(storedData);
+                vacancyData = data.vacancyData;
+                // If weights were saved from the previous page, apply them
+                if (data.criteriaWeights) {
+                    sliders.forEach(slider => {
+                        if (data.criteriaWeights[slider.id]) {
+                            slider.value = data.criteriaWeights[slider.id].weight;
+                            slider.previousElementSibling.querySelector('output').textContent = slider.value;
+                        }
+                    });
+                }
+                renderRanking(data.rankingData);
+            } else {
+                document.getElementById('loading-container').innerHTML = '<article>Нет данных для отображения. Пожалуйста, проведите новый отбор.</article>';
+            }
+        });
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+    </script>
+</body>
+
+</html>

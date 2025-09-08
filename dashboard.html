@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд - AI Interviewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .vacancy-block {
+            margin-bottom: 2.5rem;
+        }
+
+        .status-select {
+            width: 150px;
+        }
+
+        td,
+        th {
+            vertical-align: middle;
+            font-size: 0.7rem;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            border-radius: var(--pico-border-radius);
+            background-color: var(--pico-primary-background);
+            color: var(--pico-primary-inverse);
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: var(--pico-card-background-color);
+            margin: 10% auto;
+            padding: 2rem;
+            border: 1px solid var(--pico-card-border-color);
+            width: 80%;
+            max-width: 900px;
+            border-radius: var(--pico-border-radius);
+        }
+
+        .close-button {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            color: var(--pico-muted-color);
+            font-size: 2rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: var(--pico-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .actions-cell {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Дашборд</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="loading-container">
+            <article aria-busy="true">Загрузка данных...</article>
+        </div>
+
+        <div id="dashboard-container" style="display: none;">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <hgroup>
+                        <h2>Дашборд вакансий и кандидатов</h2>
+                        <p>Обзор всех процессов отбора в системе.</p>
+                    </hgroup>
+                    <div>
+                        <a href="/rank" role="button">Новый отбор резюме</a>
+                        <button id="clear-dashboard-btn" class="secondary outline">Очистить все данные</button>
+                    </div>
+                </div>
+            </header>
+            <div id="vacancies-list"></div>
+        </div>
+    </main>
+
+    <!-- Модальное окно для просмотра отчетов -->
+    <div id="report-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Отчет по интервью</h3>
+            <pre><code></code></pre>
+        </div>
+    </div>
+
+    <script>
+        const loadingContainer = document.getElementById('loading-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const vacanciesList = document.getElementById('vacancies-list');
+        const reportModal = document.getElementById('report-modal');
+        const closeModalBtn = document.querySelector('.close-button');
+        const reportContent = reportModal.querySelector('pre code');
+        const clearDashboardBtn = document.getElementById('clear-dashboard-btn');
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.start-voice')) { // <-- Обработчик для кнопки "Голос"
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const resumeData = candidatesList.find(c => c.id === candidateId);
+                startInterview('voice', resumeData);
+            }
+            if (e.target.matches('.start-text')) { // <-- Обработчик для кнопки "Симуляция"
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const resumeData = candidatesList.find(c => c.id === candidateId);
+                startInterview('text', resumeData);
+            }
+        });
+        let dashboardData = []; // Хранилище для данных дашборда
+
+        const STATUS_OPTIONS = {
+            'new': 'Новый',
+            'screening': 'Скрининг',
+            'interview_scheduled': 'Интервью назначено',
+            'interview_completed': 'Интервью пройдено',
+            'offer': 'Оффер',
+            'hired': 'Принят',
+            'rejected': 'Отказ'
+        };
+
+        function format_date(date_string) {
+            const date = new Date(date_string);
+            return date.toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function createStatusDropdown(candidateId, currentStatus) {
+            const select = document.createElement('select');
+            select.className = 'status-select';
+            select.dataset.candidateId = candidateId;
+            for (const [key, value] of Object.entries(STATUS_OPTIONS)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = value;
+                if (key === currentStatus) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            }
+            return select.outerHTML;
+        }
+
+        function renderDashboard(data) {
+            dashboardData = data; // Сохраняем данные в переменную
+            if (!data || data.length === 0) {
+                vacanciesList.innerHTML = '<article>Нет данных для отображения. Начните с <a href="/rank">отбора резюме</a>.</article>';
+                return;
+            }
+
+            vacanciesList.innerHTML = data.map(vacancy => `
+                <div class="vacancy-block">
+                    <p><span class="summary-title">Отбор от ${format_date(vacancy.created_at)}</span></p>
+                    
+                    <figure>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Кандидат</th>
+                                    <th>Оценка резюме</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${vacancy.candidates.map(candidate => `
+                                    <tr>
+                                        <td>${candidate.filename}</td>
+                                        <td><span class="score-badge">${candidate.initial_score || '-'}</span></td>
+                                        <td>${createStatusDropdown(candidate.id, candidate.status)}</td>
+                                        <td class="actions-cell">
+                                            <a href="#" data-candidate-id="${candidate.id}" data-vacancy-id="${vacancy.id}" class="start-voice">Голос</a>
+                                            <a href="#" data-candidate-id="${candidate.id}" data-vacancy-id="${vacancy.id}" class="start-text">Симуляция</a>
+                                            ${candidate.interviews.length > 0 ? `
+                                                <span style="margin: 0 0.5rem;">|</span>
+                                                ${candidate.interviews.map(interview => `<a href="#" class="view-report" data-interview-id="${interview.id}">Отчет #${interview.id}</a>`).join(' ')}
+                                            ` : ''}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </figure>
+                </div>
+            `).join('');
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/dashboard/data');
+                if (!response.ok) throw new Error('Ошибка при загрузке данных');
+                const data = await response.json(); // data уже объявлена в области видимости
+                renderDashboard(data);
+                loadingContainer.style.display = 'none';
+                dashboardContainer.style.display = 'block';
+            } catch (error) {
+                loadingContainer.innerHTML = `<article><strong>Ошибка!</strong><br>${error.message}</article>`;
+            }
+        }
+
+        async function updateStatus(candidateId, newStatus) {
+            try {
+                const response = await fetch(`/candidate/${candidateId}/status?status=${newStatus}`, { method: 'PUT' });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Ошибка сервера');
+                }
+            } catch (error) {
+                alert(`Не удалось обновить статус: ${error.message}`);
+                fetchData();
+            }
+        }
+
+        function startInterview(type, candidateData, vacancyData) {
+            const context = {
+                candidate_id: candidateData.id,
+                vacancy_text: vacancyData.text,
+                generated_questions: vacancyData.generated_questions,
+                resume_text: candidateData.resume_text,
+                weights: vacancyData.weights_json
+            };
+            localStorage.setItem('interviewAnalysisData', JSON.stringify(context));
+            window.location.href = type === 'voice' ? '/rank/interview' : '/rank/simulation';
+        }
+
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('start-voice') || e.target.classList.contains('start-text')) {
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const vacancyId = parseInt(e.target.dataset.vacancyId, 10);
+
+                const vacancyData = dashboardData.find(v => v.id === vacancyId);
+                if (!vacancyData) return;
+
+                const candidateData = vacancyData.candidates.find(c => c.id === candidateId);
+                if (!candidateData) return;
+
+                const type = e.target.classList.contains('start-voice') ? 'voice' : 'text';
+                startInterview(type, candidateData, vacancyData);
+            }
+        });
+
+        document.addEventListener('change', e => {
+            if (e.target.classList.contains('status-select')) {
+                const candidateId = e.target.dataset.candidateId;
+                const newStatus = e.target.value;
+                updateStatus(candidateId, newStatus);
+            }
+        });
+
+        function getInterviewReport(vacancyList, interviewId) {
+            for (const vacancy of vacancyList) {
+                for (const candidate of vacancy.candidates) {
+                    const interview = candidate.interviews.find(i => i.id === interviewId);
+                    if (interview) return interview.full_report_json;
+                }
+            }
+            return null;
+        }
+
+        document.addEventListener('click', async e => {
+            if (e.target.matches('.view-report')) {
+                e.preventDefault(); // Предотвращаем переход по ссылке
+                const interviewId = parseInt(e.target.dataset.interviewId, 10);
+                const response = await fetch('/dashboard/data');
+                const data = await response.json();
+                const report = getInterviewReport(data, interviewId);
+                if (report) {
+                    reportContent.textContent = JSON.stringify(report, null, 2);
+                    reportModal.style.display = 'block';
+                }
+            }
+        });
+
+        closeModalBtn.onclick = () => { reportModal.style.display = 'none'; }
+        window.onclick = (event) => {
+            if (event.target == reportModal) {
+                reportModal.style.display = 'none';
+            }
+        }
+
+        clearDashboardBtn.addEventListener('click', async () => {
+            if (confirm('Вы уверены, что хотите НАВСЕГДА удалить все вакансии, всех кандидатов и все отчеты по интервью? Это действие необратимо.')) {
+                try {
+                    const response = await fetch('/dashboard/data', { method: 'DELETE' });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.detail || 'Ошибка сервера');
+                    }
+                    alert('Все данные были успешно удалены.');
+                    fetchData();
+                } catch (error) {
+                    alert(`Не удалось очистить данные: ${error.message}`);
+                }
+            }
+        });
+
+        fetchData();
+    </script>
+</body>
+
+</html>

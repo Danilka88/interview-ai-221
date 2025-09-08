@@ -1,0 +1,30 @@
+# Virtual Environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS-specific files
+.DS_Store
+
+# Log files
+*.log
+
+# IDE files
+.idea/
+.vscode/
+
+# Downloaded Models
+# These are large binary files and should be downloaded as per README instructions
+*.pt
+vosk-model-ru/
+
+# Database file
+interview_ai.db
+
+# Environment variables
+.env

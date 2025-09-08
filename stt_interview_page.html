@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Голосовое собеседование (STT-enabled)</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        #chat-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: var(--pico-border-radius);
+            max-width: 85%;
+            width: fit-content;
+        }
+
+        .message p {
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .message strong {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: var(--pico-h6-color);
+        }
+
+        .interviewer {
+            align-self: flex-start;
+            background-color: var(--pico-secondary-background);
+        }
+
+        .user {
+            align-self: flex-end;
+            background-color: var(--pico-primary);
+            color: var(--pico-primary-inverse);
+        }
+
+        .user strong {
+            color: var(--pico-primary-inverse);
+            opacity: 0.8;
+        }
+
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem 1rem;
+            border-top: 1px solid var(--pico-card-border);
+        }
+
+        #status-container {
+            text-align: center;
+            min-height: 40px;
+            padding: 0.5rem;
+            color: var(--pico-muted-color);
+        }
+
+        #talkButton {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: none;
+            background-color: #43a047;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #talkButton:disabled {
+            background-color: var(--pico-muted-background);
+            cursor: not-allowed;
+        }
+
+        #talkButton.recording {
+            background-color: #d32f2f;
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(211, 47, 47, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li><hr></li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li><hr></li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><hr></li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="interview-container" style="display: flex; flex-direction: column; height: 100%;">
+            <header>
+                <hgroup>
+                    <h2 id="interview-title" style="text-align: center; margin-bottom: 0;">Идет собеседование (STT-enabled)...</h2>
+                    <p style="text-align: center; margin: 0;">ИИ-рекрутер задает вопросы голосом, а вы отвечаете,
+                        удерживая кнопку.</p>
+                </hgroup>
+            </header>
+            <section id="chat-log"></section>
+            <div id="status-container">
+                <small id="status">Подготовка к диалогу...</small>
+                <small id="user-partial-text"></small>
+            </div>
+            <footer>
+                <button id="talkButton" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                    </svg>
+                </button>
+                <button id="finishInterviewButton" class="secondary">Завершить</button>
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        const talkButton = document.getElementById('talkButton');
+        const finishInterviewButton = document.getElementById('finishInterviewButton');
+        const statusDiv = document.getElementById('status');
+        const chatLog = document.getElementById('chat-log');
+        const userPartialTextSpan = document.getElementById('user-partial-text');
+
+        let ws;
+        let isRecording = false;
+        let audioContext;
+        let scriptProcessor;
+        let stream;
+        let conversationHistory = [];
+        let interviewContext = {};
+
+        function addMessage(sender, text) {
+            const senderMap = {
+                'Interviewer': 'AI Рекрутер',
+                'User': 'Вы (кандидат)',
+            };
+            const localizedSender = senderMap[sender] || sender;
+
+            const article = document.createElement('article');
+            const senderClass = sender.toLowerCase() === 'user' ? 'user' : 'interviewer';
+            article.className = `message ${senderClass}`;
+            article.innerHTML = `<strong>${localizedSender}</strong><p>${text}</p>`;
+            chatLog.appendChild(article);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            conversationHistory.push({ sender, text });
+        }
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            // Connect to the new STT-enabled WebSocket endpoint
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/live_stt`);
+
+            ws.onopen = () => {
+                statusDiv.textContent = 'Соединение установлено. Отправка контекста...';
+                ws.send(JSON.stringify({ type: 'start_interview', ...interviewContext }));
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'text') {
+                    addMessage(message.sender, message.data);
+                    userPartialTextSpan.textContent = '';
+                } else if (message.type === 'partial_text') {
+                    userPartialTextSpan.textContent = message.data;
+                } else if (message.type === 'status') {
+                    statusDiv.textContent = message.data;
+                } else if (message.type === 'audio') {
+                    userPartialTextSpan.textContent = '';
+                    if (message.data) {
+                        statusDiv.textContent = 'ИИ говорит...';
+                        talkButton.disabled = true;
+                        const audio = new Audio("data:audio/wav;base64," + message.data);
+                        audio.play();
+                        audio.onended = () => {
+                            talkButton.disabled = false;
+                            statusDiv.textContent = 'Ваш ход. Удерживайте кнопку для ответа.';
+                        };
+                    } else {
+                        talkButton.disabled = false;
+                        statusDiv.textContent = 'Не удалось распознать ответ. Попробуйте снова.';
+                    }
+                } else if (message.type === 'error') {
+                    statusDiv.textContent = `Ошибка сервера: ${message.message}`;
+                    talkButton.style.display = 'none';
+                    finishInterviewButton.style.display = 'none';
+                }
+            };
+
+            ws.onerror = (error) => { statusDiv.textContent = 'Ошибка WebSocket соединения.'; console.error('WebSocket Error:', error); };
+            ws.onclose = () => { statusDiv.textContent = 'Соединение закрыто.'; talkButton.disabled = true; finishInterviewButton.disabled = true; };
+        }
+
+        async function toggleRecording(start) {
+            if (start) {
+                if (ws.readyState !== WebSocket.OPEN) { statusDiv.textContent = 'Нет соединения с сервером.'; return; }
+                isRecording = true;
+                talkButton.classList.add('recording');
+                statusDiv.textContent = 'Запись...';
+                try {
+                    if (!audioContext || audioContext.state === 'closed') {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                    }
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    const source = audioContext.createMediaStreamSource(stream);
+                    scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+                    scriptProcessor.onaudioprocess = (e) => {
+                        if (!isRecording || ws.readyState !== WebSocket.OPEN) return;
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const pcmData = new Int16Array(inputData.length);
+                        for (let i = 0; i < inputData.length; i++) { pcmData[i] = inputData[i] * 0x7FFF; }
+                        ws.send(pcmData.buffer);
+                    };
+                    source.connect(scriptProcessor);
+                    scriptProcessor.connect(audioContext.destination);
+                } catch (err) {
+                    statusDiv.textContent = `Ошибка микрофона: ${err.message}`;
+                    console.error(err);
+                    toggleRecording(false);
+                }
+            } else {
+                if (!isRecording) return;
+                isRecording = false;
+                talkButton.classList.remove('recording');
+                talkButton.disabled = true;
+                statusDiv.textContent = 'Обработка ответа...';
+                if (scriptProcessor) { scriptProcessor.disconnect(); scriptProcessor = null; }
+                if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
+                
+                // Send an empty buffer to signal end of audio stream
+                if (ws.readyState === WebSocket.OPEN) { ws.send(new ArrayBuffer(0)); }
+
+                // Wait for the final recognized text from the server
+                // This is a simplified approach. In a real app, you might use a Promise
+                // or a more sophisticated state management.
+                // For now, we'll assume the server sends a 'text' message with the final result.
+                // The `websocket_live_stt_endpoint` in Python will send the final text.
+                // We need to capture that here and then send it back to the server
+                // as a 'final_user_text' message.
+
+                // This part needs careful synchronization.
+                // The `recognize_audio_stream` in Python sends the final text.
+                // This JS needs to receive it, then send it back to the main loop.
+                // A better way would be for `recognize_audio_stream` to return the text.
+                // But given the current structure,
+                // I'll make a simplifying assumption for the client-side.
+
+                // After the audio stream ends, the server's `recognize_audio_stream`
+                // will send the final text. The `ws.onmessage` handler will receive it.
+                // We need to ensure that `ws.onmessage` then triggers sending
+                // a `final_user_text` message back to the server.
+
+                // This is a tricky part due to the asynchronous nature and separation of concerns.
+                // For now, I'll rely on the `ws.onmessage` to handle the incoming 'text' message
+                // and then the `websocket_live_stt_endpoint` in Python will receive a
+                // `final_user_text` message from the client.
+
+                // To make this work, the `ws.onmessage` needs to store the last full text.
+                let lastRecognizedText = '';
+                const originalOnMessage = ws.onmessage;
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'text' && message.sender === 'User') {
+                        lastRecognizedText = message.data;
+                    }
+                    originalOnMessage(event); // Call original handler
+                };
+
+                // Now, after sending the empty buffer, send the final text back
+                // This is a hacky way to pass the recognized text back to the main loop.
+                // A better design would be to have `recognize_audio_stream` return the text.
+                // But given the constraint of not modifying existing files, and the current
+                // structure of `recognize_audio_stream` sending directly to websocket,
+                // this is a workaround.
+                setTimeout(() => { // Give a small delay for the server to process and send back
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'final_user_text', data: lastRecognizedText }));
+                    }
+                }, 500); // Adjust delay as needed
+            }
+        }
+
+        finishInterviewButton.addEventListener('click', () => {
+            if (ws) ws.close();
+            const dataToAnalyze = { ...interviewContext, conversation_history: conversationHistory };
+            localStorage.setItem('interviewAnalysisData', JSON.stringify(dataToAnalyze));
+            window.location.href = '/rank/interview_result';
+        });
+
+        window.addEventListener('load', () => {
+            const storedData = localStorage.getItem('interviewAnalysisData');
+            if (storedData) {
+                interviewContext = JSON.parse(storedData);
+                connect();
+            } else {
+                document.body.innerHTML = '<main class="container"><h1>Ошибка</h1><p>Не найдены данные для начала собеседования. Пожалуйста, вернитесь на страницу отбора и выберите кандидата.</p><a href="/rank" role="button">Вернуться к отбору</a></main>';
+            }
+        });
+
+        talkButton.addEventListener('mousedown', () => toggleRecording(true));
+        talkButton.addEventListener('mouseup', () => toggleRecording(false));
+        talkButton.addEventListener('mouseleave', () => { if (isRecording) toggleRecording(false); });
+        talkButton.addEventListener('touchstart', (e) => { e.preventDefault(); toggleRecording(true); }, { passive: false });
+        talkButton.addEventListener('touchend', (e) => { e.preventDefault(); toggleRecording(false); });
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+
+    </script>
+</body>
+
+</html>

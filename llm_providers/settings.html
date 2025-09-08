@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки LLM-провайдеров</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--pico-card-border);
+            border-radius: var(--pico-border-radius);
+        }
+
+        .api-key-fields {
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Настройки LLM</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <hgroup>
+            <h2>Настройки LLM-провайдеров</h2>
+            <p>Выберите провайдера для генерации текста и настройте необходимые параметры.</p>
+        </hgroup>
+
+        <section class="form-section">
+            <h3>Выбор провайдера</h3>
+            <form id="llm-provider-form">
+                <label for="llm-provider-select">Провайдер LLM</label>
+                <select id="llm-provider-select" name="LLM_PROVIDER">
+                    <option value="ollama">Ollama (локально)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="yandexgpt">YandexGPT</option>
+                    <option value="sber_gigachat">Sber GigaChat</option>
+                </select>
+                <small>Выбранный провайдер будет использоваться для всех операций генерации текста через API.</small>
+
+                <div id="api-key-section">
+                    <!-- OpenAI API Key Field -->
+                    <div id="openai_fields" class="api-key-fields">
+                        <label for="openai-api-key">OpenAI API Key</label>
+                        <input type="text" id="openai-api-key" name="OPENAI_API_KEY" placeholder="Введите ваш OpenAI API Key">
+                        <small>Получите ваш API ключ в OpenAI Platform.</small>
+                    </div>
+
+                    <!-- YandexGPT API Key Field -->
+                    <div id="yandexgpt_fields" class="api-key-fields">
+                        <label for="yandexgpt-api-key">YandexGPT API Key</label>
+                        <input type="text" id="yandexgpt-api-key" name="YANDEX_GPT_API_KEY" placeholder="Введите ваш YandexGPT API Key">
+                        <small>Получите ваш API ключ в Yandex Cloud Console.</small>
+                    </div>
+
+                    <!-- Sber GigaChat API Key Field -->
+                    <div id="sber_gigachat_fields" class="api-key-fields">
+                        <label for="sber-gigachat-api-key">Sber GigaChat API Key</label>
+                        <input type="text" id="sber-gigachat-api-key" name="SBER_GIGACHAT_API_KEY" placeholder="Введите ваш Sber GigaChat API Key">
+                        <small>Получите ваш API ключ в SberCloud.</small>
+                    </div>
+                </div>
+
+                <button type="submit" id="save-llm-settings-btn" class="primary">Сохранить настройки LLM</button>
+                <button type="button" id="test-llm-settings-btn" class="secondary">Проверить настройки LLM</button>
+                <p id="llm-status-message" style="margin-top: 1rem;"></p>
+            </form>
+        </section>
+
+        <section class="form-section">
+            <h3>Тестирование генерации</h3>
+            <form id="llm-generate-form">
+                <label for="llm-prompt">Промпт для генерации:</label>
+                <textarea id="llm-prompt" rows="5" placeholder="Введите текст для генерации..."></textarea>
+                <button type="submit" id="generate-text-btn">Сгенерировать текст</button>
+                <p id="llm-generate-status" style="margin-top: 1rem;"></p>
+                <label for="llm-generated-text">Сгенерированный текст:</label>
+                <textarea id="llm-generated-text" rows="10" readonly></textarea>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const llmProviderSelect = document.getElementById('llm-provider-select');
+        const apiKeyFields = document.querySelectorAll('.api-key-fields');
+        const openaiFields = document.getElementById('openai_fields');
+        const openaiApiKeyInput = document.getElementById('openai-api-key');
+        const yandexgptFields = document.getElementById('yandexgpt_fields');
+        const yandexgptApiKeyInput = document.getElementById('yandexgpt-api-key');
+        const sberGigachatFields = document.getElementById('sber_gigachat_fields');
+        const sberGigachatApiKeyInput = document.getElementById('sber-gigachat-api-key');
+        const saveLlmSettingsBtn = document.getElementById('save-llm-settings-btn');
+        const testLlmSettingsBtn = document.getElementById('test-llm-settings-btn');
+        const llmStatusMessage = document.getElementById('llm-status-message');
+        const llmGenerateForm = document.getElementById('llm-generate-form');
+        const llmPromptInput = document.getElementById('llm-prompt');
+        const generateTextBtn = document.getElementById('generate-text-btn');
+        const llmGenerateStatus = document.getElementById('llm-generate-status');
+        const llmGeneratedText = document.getElementById('llm-generated-text');
+
+        function toggleApiKeyFields() {
+            apiKeyFields.forEach(field => field.style.display = 'none');
+            const selectedProvider = llmProviderSelect.value;
+            if (selectedProvider === 'openai') {
+                openaiFields.style.display = 'block';
+            } else if (selectedProvider === 'yandexgpt') {
+                yandexgptFields.style.display = 'block';
+            } else if (selectedProvider === 'sber_gigachat') {
+                sberGigachatFields.style.display = 'block';
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/v1/llm-providers/config');
+                if (response.ok) {
+                    const settings = await response.json();
+                    llmProviderSelect.value = settings.LLM_PROVIDER || 'ollama';
+                    openaiApiKeyInput.value = settings.OPENAI_API_KEY || '';
+                    yandexgptApiKeyInput.value = settings.YANDEX_GPT_API_KEY || '';
+                    sberGigachatApiKeyInput.value = settings.SBER_GIGACHAT_API_KEY || '';
+                }
+            } catch (error) {
+                console.error('Error loading LLM settings:', error);
+                llmStatusMessage.textContent = 'Ошибка загрузки настроек.';
+                llmStatusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+            } finally {
+                toggleApiKeyFields();
+            }
+        }
+
+        async function saveSettings(event) {
+            event.preventDefault();
+            saveLlmSettingsBtn.setAttribute('aria-busy', 'true');
+            saveLlmSettingsBtn.disabled = true;
+            llmStatusMessage.textContent = 'Сохранение...';
+            llmStatusMessage.style.color = 'var(--pico-muted-color)';
+
+            const selectedProvider = llmProviderSelect.value;
+            const payload = {
+                LLM_PROVIDER: selectedProvider,
+                OPENAI_API_KEY: openaiApiKeyInput.value,
+                YANDEX_GPT_API_KEY: yandexgptApiKeyInput.value,
+                SBER_GIGACHAT_API_KEY: sberGigachatApiKeyInput.value,
+            };
+
+            try {
+                const response = await fetch('/api/v1/llm-providers/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    llmStatusMessage.textContent = 'Настройки успешно сохранены (до перезапуска).';
+                    llmStatusMessage.style.color = 'var(--pico-success)';
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Ошибка сохранения настроек.');
+                }
+            } catch (error) {
+                llmStatusMessage.textContent = `Ошибка: ${error.message}`;
+                llmStatusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                console.error('Error saving LLM settings:', error);
+            } finally {
+                saveLlmSettingsBtn.setAttribute('aria-busy', 'false');
+                saveLlmSettingsBtn.disabled = false;
+            }
+        }
+
+        async function testSettings() {
+            testLlmSettingsBtn.setAttribute('aria-busy', 'true');
+            testLlmSettingsBtn.disabled = true;
+            llmStatusMessage.textContent = 'Тестирование...';
+            llmStatusMessage.style.color = 'var(--pico-muted-color)';
+
+            const selectedProvider = llmProviderSelect.value;
+            const payload = {
+                LLM_PROVIDER: selectedProvider,
+                OPENAI_API_KEY: openaiApiKeyInput.value,
+                YANDEX_GPT_API_KEY: yandexgptApiKeyInput.value,
+                SBER_GIGACHAT_API_KEY: sberGigachatApiKeyInput.value,
+            };
+
+            try {
+                const response = await fetch('/api/v1/llm-providers/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        llmStatusMessage.textContent = `Тест пройден: ${result.message}`; 
+                        llmStatusMessage.style.color = 'var(--pico-success)';
+                    } else {
+                        llmStatusMessage.textContent = `Тест не пройден: ${result.message}`; 
+                        llmStatusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                    }
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Ошибка тестирования настроек.');
+                }
+            } catch (error) {
+                llmStatusMessage.textContent = `Ошибка: ${error.message}`; 
+                llmStatusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                console.error('Error testing LLM settings:', error);
+            } finally {
+                testLlmSettingsBtn.setAttribute('aria-busy', 'false');
+                testLlmSettingsBtn.disabled = false;
+            }
+        }
+
+        async function generateText(event) {
+            event.preventDefault();
+            generateTextBtn.setAttribute('aria-busy', 'true');
+            generateTextBtn.disabled = true;
+            llmGenerateStatus.textContent = 'Генерация...';
+            llmGenerateStatus.style.color = 'var(--pico-muted-color)';
+            llmGeneratedText.value = '';
+
+            const prompt = llmPromptInput.value;
+            if (!prompt) {
+                llmGenerateStatus.textContent = 'Введите промпт для генерации.';
+                llmGenerateStatus.style.color = 'var(--pico-form-element-invalid-border-color)';
+                generateTextBtn.setAttribute('aria-busy', 'false');
+                generateTextBtn.disabled = false;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/llm-providers/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    llmGeneratedText.value = result.generated_text;
+                    llmGenerateStatus.textContent = 'Текст сгенерирован успешно!';
+                    llmGenerateStatus.style.color = 'var(--pico-success)';
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Ошибка генерации текста.');
+                }
+            } catch (error) {
+                llmGenerateStatus.textContent = `Ошибка: ${error.message}`;
+                llmGenerateStatus.style.color = 'var(--pico-form-element-invalid-border-color)';
+                console.error('Error generating text:', error);
+            } finally {
+                generateTextBtn.setAttribute('aria-busy', 'false');
+                generateTextBtn.disabled = false;
+            }
+        }
+
+        llmProviderSelect.addEventListener('change', toggleApiKeyFields);
+        llmProviderSelect.form.addEventListener('submit', saveSettings);
+        testLlmSettingsBtn.addEventListener('click', testSettings);
+        llmGenerateForm.addEventListener('submit', generateText);
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+    </script>
+</body>
+
+</html>

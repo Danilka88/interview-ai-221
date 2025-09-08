@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Конструктор вакансий</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        #builder-form>* {
+            margin-bottom: 1.5rem;
+        }
+
+        .weight-slider {
+            margin-bottom: 1rem;
+        }
+
+        .weight-slider label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .weight-slider label .value-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            /* Небольшой отступ между числом и % */
+        }
+
+        #result-container {
+            margin-top: 2rem;
+            border: 1px solid var(--pico-card-border);
+            padding: 1.5rem;
+            border-radius: var(--pico-border-radius);
+        }
+
+        #md-preview {
+            background-color: var(--pico-secondary-background);
+            padding: 1rem;
+            border-radius: var(--pico-border-radius);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        #download-buttons {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li>
+                            <hr>
+                        </li>
+                        <!-- Группа 3: Настройки и прочее -->
+                        <li><a href="/settings">Настройки</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Конструктор вакансий</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="builder-container">
+            <header>
+                <hgroup>
+                    <h2>Конструктор описания вакансии</h2>
+                    <p>Загрузите файл с базовым описанием и настройте веса критериев для генерации улучшенной версии с
+                        помощью LLM.</p>
+                </hgroup>
+            </header>
+            <form id="builder-form">
+                <label for="vacancy-file">1. Файл с описанием вакансии (обязательно)
+                    <input type="file" id="vacancy-file" name="vacancy" required>
+                </label>
+
+                <fieldset id="criteria-weights">
+                    <legend>2. Настройте веса критериев (сумма 100%)</legend>
+                    <div class="weight-slider"
+                        data-description="Оценивает знание технологий, языков программирования, фреймворков и инструментов, необходимых для работы.">
+                        <label for="tech_skills">
+                            <span>Технические навыки</span>
+                            <span class="value-wrapper">
+                                <output for="tech_skills">40</output>%
+                            </span>
+                        </label>
+                        <input type="range" id="tech_skills" name="tech_skills" min="0" max="100" value="40">
+                        <small>Знание стека, инструментов, архитектурные подходы.</small>
+                    </div>
+                    <div class="weight-slider"
+                        data-description="Оценивает способность кандидата ясно излагать мысли, слушать, давать обратную связь и эффективно работать в команде.">
+                        <label for="communication">
+                            <span>Коммуникативные навыки</span>
+                            <span class="value-wrapper">
+                                <output for="communication">30</output>%
+                            </span>
+                        </label>
+                        <input type="range" id="communication" name="communication" min="0" max="100" value="30">
+                        <small>Работа в команде, умение доносить идеи, разрешение конфликтов.</small>
+                    </div>
+                    <div class="weight-slider"
+                        data-description="Оценивает опыт кандидата в решении практических задач, аналогичных тем, с которыми он столкнется на работе.">
+                        <label for="case_experience">
+                            <span>Опыт решения кейсов</span>
+                            <span class="value-wrapper">
+                                <output for="case_experience">20</output>%
+                            </span>
+                        </label>
+                        <input type="range" id="case_experience" name="case_experience" min="0" max="100" value="20">
+                        <small>Практический опыт, решение бизнес-задач, портфолио.</small>
+                    </div>
+                    <div class="weight-slider"
+                        data-description="Оценивает соответствие ценностей и стиля работы кандидата культуре компании и команды.">
+                        <label for="cultural_fit">
+                            <span>Культурное соответствие</span>
+                            <span class="value-wrapper">
+                                <output for="cultural_fit">10</output>%
+                            </span>
+                        </label>
+                        <input type="range" id="cultural_fit" name="cultural_fit" min="0" max="100" value="10">
+                        <small>Ценности, мотивация, подход к работе и обратной связи.</small>
+                    </div>
+                    <div class="weight-slider">
+                        <label for="total_score">
+                            <span>Общий балл (доступно)</span>
+                            <span class="value-wrapper">
+                                <output for="total_score">0</output>%
+                            </span>
+                        </label>
+                        <input type="range" id="total_score" name="total_score" min="0" max="100" value="0" disabled>
+                        <small>Остаток баллов для распределения.</small>
+                    </div>
+                </fieldset>
+
+                <button type="submit" id="generate-button" aria-busy="false">Сгенерировать описание</button>
+            </form>
+
+            <div id="status"></div>
+
+            <div id="result-container" style="display: none;">
+                <h3>Предварительный просмотр</h3>
+                <pre><code id="md-preview"></code></pre>
+                <div id="download-buttons">
+                    <a href="#" id="download-md" class="button" download="vacancy_description.md">Скачать .MD</a>
+                    <a href="#" id="download-json" class="button secondary" download="vacancy_details.json">Скачать
+                        .JSON</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const builderForm = document.getElementById('builder-form');
+        const generateButton = document.getElementById('generate-button');
+        const statusDiv = document.getElementById('status');
+        const vacancyFile = document.getElementById('vacancy-file');
+        const resultContainer = document.getElementById('result-container');
+        const mdPreview = document.getElementById('md-preview');
+        const downloadMdButton = document.getElementById('download-md');
+        const downloadJsonButton = document.getElementById('download-json');
+
+        const sliders = Array.from(document.querySelectorAll('.weight-slider input[type="range"]'));
+        const outputs = Array.from(document.querySelectorAll('.weight-slider output'));
+        const sliderContainers = Array.from(document.querySelectorAll('.weight-slider'));
+
+        const totalScoreSlider = document.getElementById('total_score');
+        const totalScoreOutput = totalScoreSlider.previousElementSibling.querySelector('output');
+
+        // Обновляем sliders, чтобы он не включал total_score_slider для adjustSliders
+        const mainSliders = Array.from(document.querySelectorAll('#criteria-weights .weight-slider input[type="range"]:not(#total_score)'));
+        const mainOutputs = Array.from(document.querySelectorAll('#criteria-weights .weight-slider output:not([for="total_score"])'));
+
+        // Удаляем старую функцию adjustSliders
+        // function adjustSliders(changedSlider) { ... }
+
+        function updateTotalScore() {
+            let currentSum = 0;
+            mainSliders.forEach(slider => {
+                currentSum += parseInt(slider.value, 10);
+            });
+
+            const remaining = 100 - currentSum;
+            totalScoreSlider.value = Math.max(0, remaining);
+            totalScoreOutput.textContent = Math.max(0, remaining);
+        }
+
+        mainSliders.forEach((slider, index) => {
+            slider.addEventListener('input', (event) => {
+                let currentSum = 0;
+                mainSliders.forEach(s => {
+                    currentSum += parseInt(s.value, 10);
+                });
+
+                if (currentSum > 100) {
+                    const diff = currentSum - 100;
+                    event.target.value = parseInt(event.target.value, 10) - diff;
+                    if (parseInt(event.target.value, 10) < 0) {
+                        event.target.value = 0;
+                    }
+                }
+                mainOutputs[index].textContent = event.target.value; // Обновляем output для текущего слайдера
+                updateTotalScore();
+            });
+        });
+
+        // Инициализация total_score при загрузке страницы
+        updateTotalScore();
+
+        builderForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (vacancyFile.files.length === 0) {
+                alert('Пожалуйста, загрузите файл с описанием вакансии.');
+                return;
+            }
+
+            generateButton.setAttribute('aria-busy', 'true');
+            generateButton.disabled = true;
+            statusDiv.textContent = 'Чтение файла и подготовка запроса...';
+            resultContainer.style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const vacancyText = event.target.result;
+                const weights = {};
+                sliderContainers.forEach(container => {
+                    const slider = container.querySelector('input[type="range"]');
+                    weights[slider.id] = {
+                        weight: parseInt(slider.value, 10),
+                        description: container.dataset.description
+                    };
+                });
+
+                const payload = {
+                    vacancy_text: vacancyText,
+                    weights: weights
+                };
+
+                try {
+                    statusDiv.textContent = 'LLM генерирует описание... Это может занять некоторое время.';
+
+                    const response = await fetch('/api/v1/build-vacancy-description', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorResult = await response.json();
+                        throw new Error(errorResult.detail || `Ошибка сервера: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    const markdownText = result.description;
+
+                    if (!markdownText) {
+                        throw new Error("Ответ от сервера не содержит сгенерированного описания.");
+                    }
+
+                    mdPreview.textContent = markdownText;
+
+                    const mdBlob = new Blob([markdownText], { type: 'text/markdown;charset=utf-8' });
+                    downloadMdButton.href = URL.createObjectURL(mdBlob);
+
+                    const jsonToDownload = {
+                        "vacancy_description": markdownText
+                    };
+                    const jsonBlob = new Blob([JSON.stringify(jsonToDownload, null, 2)], { type: 'application/json;charset=utf-8' });
+                    downloadJsonButton.href = URL.createObjectURL(jsonBlob);
+
+                    resultContainer.style.display = 'block';
+                    statusDiv.textContent = 'Готово!';
+
+                } catch (error) {
+                    let errorMessage = "Произошла неизвестная ошибка.";
+                    if (error instanceof Error) {
+                        errorMessage = error.message;
+                    } else if (typeof error === 'object' && error !== null) {
+                        // Попытка извлечь сообщение из объекта, если это не Error
+                        // Проверяем, есть ли свойство 'detail' (как в FastAPI HTTPException)
+                        if (error.detail) {
+                            errorMessage = error.detail;
+                        } else {
+                            // Если нет 'detail', преобразуем весь объект в строку
+                            errorMessage = JSON.stringify(error);
+                        }
+                    } else {
+                        errorMessage = String(error); // Преобразуем что угодно в строку
+                    }
+                    statusDiv.innerHTML = `<p style="color: var(--pico-form-element-invalid-border-color);">Произошла ошибка: ${errorMessage}</p>`;
+                } finally {
+                    generateButton.setAttribute('aria-busy', 'false');
+                    generateButton.disabled = false;
+                }
+            };
+            reader.onerror = () => {
+                statusDiv.innerHTML = `<p style="color: var(--pico-form-element-invalid-border-color);">Не удалось прочитать файл.</p>`;
+                generateButton.setAttribute('aria-busy', 'false');
+                generateButton.disabled = false;
+            };
+            reader.readAsText(vacancyFile.files[0]);
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отбор резюме</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+        main.container {
+            margin-top: 1rem;
+        }
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        #rank-form > * {
+            margin-bottom: 1.5rem;
+        }
+        .weight-slider {
+            margin-bottom: 1rem;
+        }
+        .weight-slider label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .weight-slider label .value-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li><hr></li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li><hr></li>
+                        <!-- Группа 3: Настройки и прочее -->
+                        <li><a href="/settings">Настройки</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="upload-container">
+            <header>
+                <hgroup>
+                    <h2>Отбор лучших резюме</h2>
+                    <p>Загрузите вакансию, настройте веса и добавьте резюме для составления рейтинга.</p>
+                </hgroup>
+            </header>
+            <form id="rank-form">
+                <label for="vacancy-file">1. Файл с описанием вакансии (обязательно)
+                    <input type="file" id="vacancy-file" name="vacancy" required>
+                </label>
+
+                <fieldset id="criteria-weights">
+                    <legend>2. Настройте веса критериев оценки (сумма 100%)</legend>
+                    <div class="weight-slider" data-description="Оценивает знание технологий, языков программирования, фреймворков и инструментов, необходимых для работы.">
+                        <label for="tech_skills">
+                            <span>Технические навыки</span>
+                            <span class="value-wrapper"><output for="tech_skills">40</output>%</span>
+                        </label>
+                        <input type="range" id="tech_skills" name="tech_skills" min="0" max="100" value="40">
+                        <small>Знание стека, инструментов, архитектурные подходы.</small>
+                    </div>
+                    <div class="weight-slider" data-description="Оценивает способность кандидата ясно излагать мысли, слушать, давать обратную связь и эффективно работать в команде.">
+                        <label for="communication">
+                            <span>Коммуникативные навыки</span>
+                            <span class="value-wrapper"><output for="communication">30</output>%</span>
+                        </label>
+                        <input type="range" id="communication" name="communication" min="0" max="100" value="30">
+                        <small>Работа в команде, умение доносить идеи, разрешение конфликтов.</small>
+                    </div>
+                    <div class="weight-slider" data-description="Оценивает опыт кандидата в решении практических задач, аналогичных тем, с которыми он столкнется на работе.">
+                        <label for="case_experience">
+                            <span>Опыт решения кейсов</span>
+                            <span class="value-wrapper"><output for="case_experience">20</output>%</span>
+                        </label>
+                        <input type="range" id="case_experience" name="case_experience" min="0" max="100" value="20">
+                        <small>Практический опыт, решение бизнес-задач, портфолио.</small>
+                    </div>
+                    <div class="weight-slider" data-description="Оценивает соответствие ценностей и стиля работы кандидата культуре компании и команды.">
+                        <label for="cultural_fit">
+                            <span>Культурное соответствие</span>
+                            <span class="value-wrapper"><output for="cultural_fit">10</output>%</span>
+                        </label>
+                        <input type="range" id="cultural_fit" name="cultural_fit" min="0" max="100" value="10">
+                        <small>Ценности, мотивация, подход к работе и обратной связи.</small>
+                    </div>
+                    <div class="weight-slider">
+                        <label for="total_score">
+                            <span>Общий балл (доступно)</span>
+                            <span class="value-wrapper"><output for="total_score">0</output>%</span>
+                        </label>
+                        <input type="range" id="total_score" name="total_score" min="0" max="100" value="0" disabled>
+                        <small>Остаток баллов для распределения.</small>
+                    </div>
+                </fieldset>
+
+                <label for="resume-files">3. Файлы с резюме (до 20 шт.)
+                    <input type="file" id="resume-files" name="resumes" multiple required>
+                </label>
+                <button type="submit" id="rank-button" aria-busy="false">Проанализировать и составить ТОП</button>
+            </form>
+            <div id="rank-status"></div>
+        </div>
+    </main>
+
+    <script>
+        const rankForm = document.getElementById('rank-form');
+        const rankButton = document.getElementById('rank-button');
+        const rankStatus = document.getElementById('rank-status');
+        const vacancyFile = document.getElementById('vacancy-file');
+        vacancyFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                savedGeneratedQuestions = "";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                rankStatus.textContent = 'Анализирую вакансию для генерации вопросов...';
+                const response = await fetch('/upload-vacancy', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Ошибка при загрузке вакансии');
+                }
+
+                savedGeneratedQuestions = result.generated_questions || "";
+                rankStatus.textContent = 'Вакансия загружена. Вопросы сгенерированы.';
+            } catch (error) {
+                alert(`Ошибка при обработке вакансии: ${error.message}`);
+                savedGeneratedQuestions = "";
+                rankStatus.textContent = 'Ошибка при загрузке вакансии.';
+            }
+        });
+        const resumeFiles = document.getElementById('resume-files');
+        const sliderContainers = Array.from(document.querySelectorAll('#criteria-weights .weight-slider'));
+
+        let savedGeneratedQuestions = ""; // Новая переменная для хранения сгенерированных вопросов
+
+        // --- Logic for sliders (copied from vacancy_builder) ---
+        const totalScoreSlider = document.getElementById('total_score');
+        const totalScoreOutput = totalScoreSlider.previousElementSibling.querySelector('output');
+        const mainSliders = Array.from(document.querySelectorAll('#criteria-weights .weight-slider input[type="range"]:not(#total_score)'));
+        const mainOutputs = Array.from(document.querySelectorAll('#criteria-weights .weight-slider output:not([for="total_score"])'));
+
+        function updateTotalScore() {
+            let currentSum = 0;
+            mainSliders.forEach(slider => {
+                currentSum += parseInt(slider.value, 10);
+            });
+
+            const remaining = 100 - currentSum;
+            totalScoreSlider.value = Math.max(0, remaining);
+            totalScoreOutput.textContent = Math.max(0, remaining);
+        }
+
+        mainSliders.forEach((slider, index) => {
+            slider.addEventListener('input', (event) => {
+                let currentSum = 0;
+                mainSliders.forEach(s => {
+                    currentSum += parseInt(s.value, 10);
+                });
+
+                if (currentSum > 100) {
+                    const diff = currentSum - 100;
+                    event.target.value = parseInt(event.target.value, 10) - diff;
+                    if (parseInt(event.target.value, 10) < 0) {
+                        event.target.value = 0;
+                    }
+                }
+                mainOutputs[index].textContent = event.target.value;
+                updateTotalScore();
+            });
+        });
+
+        updateTotalScore(); // Initial calculation
+
+        // --- Form submission logic ---
+        rankForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (resumeFiles.files.length === 0) {
+                alert('Пожалуйста, загрузите хотя бы один файл с резюме.');
+                return;
+            }
+            if (resumeFiles.files.length > 20) {
+                alert('Можно загрузить не более 20 резюме за раз.');
+                return;
+            }
+
+            rankButton.setAttribute('aria-busy', 'true');
+            rankButton.disabled = true;
+            rankStatus.textContent = 'Загрузка и обработка файлов...';
+
+            const weights = {};
+            sliderContainers.forEach(container => {
+                const slider = container.querySelector('input[type="range"]');
+                if (slider && slider.id !== 'total_score') {
+                    weights[slider.id] = {
+                        weight: parseInt(slider.value, 10),
+                        description: container.dataset.description
+                    };
+                }
+            });
+
+            const formData = new FormData();
+            formData.append('vacancy', vacancyFile.files[0]);
+            for (const file of resumeFiles.files) {
+                formData.append('resumes', file);
+            }
+            formData.append('weights', JSON.stringify(weights));
+            if (savedGeneratedQuestions) {
+                formData.append('generated_questions', savedGeneratedQuestions);
+            }
+
+            try {
+                rankStatus.textContent = 'ИИ анализирует резюме с учетом весов. Это может занять несколько минут...';
+                const response = await fetch('/rank-resumes', { method: 'POST', body: formData });
+                
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const errorInfo = result.detail || response.statusText;
+                    throw new Error(`Ошибка сервера: ${errorInfo}`);
+                }
+
+                if (result.errors && result.errors.length > 0) {
+                    const errorDetails = result.errors.join('\n');
+                    throw new Error(`Не удалось обработать одно или несколько резюме:\n${errorDetails}`);
+                }
+
+                if (!result.ranking || result.ranking.length === 0) {
+                    throw new Error('Не удалось проанализировать ни одного резюме. Ответ от сервера не содержит рейтинга.');
+                }
+
+                const vacancyReader = new FileReader();
+                vacancyReader.onload = function(event) {
+                    const vacancyText = event.target.result;
+                    const vacancyData = { 
+                        vacancy_text: vacancyText,
+                        generated_questions: result.ranking[0]?.generated_questions
+                    };
+                    const resultData = {
+                        rankingData: result,
+                        vacancyData: vacancyData,
+                        criteriaWeights: weights 
+                    };
+                    localStorage.setItem('rankResultData', JSON.stringify(resultData));
+                    window.location.href = '/rank/result';
+                };
+                vacancyReader.readAsText(vacancyFile.files[0]);
+
+            } catch (error) {
+                alert(`Произошла ошибка: ${error.message}`);
+                rankButton.setAttribute('aria-busy', 'false');
+                rankButton.disabled = false;
+                rankStatus.textContent = 'Ошибка.';
+            }
+        });
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+    </script>
+</body>
+
+</html>

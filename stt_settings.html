@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки STT - AI Interviewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+        main.container {
+            margin-top: 1rem;
+        }
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+        .notice {
+            background-color: var(--pico-card-background-color);
+            border-left: 4px solid var(--pico-primary);
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: var(--pico-border-radius);
+        }
+        .api-key-fields {
+            display: none; /* Hidden by default */
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li><hr></li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li><hr></li>
+                        <!-- Группа 3: Настройки системы -->
+                        <li><a href="/settings">Настройки языка (Vosk)</a></li>
+                        <li><a href="/stt-settings">Настройки STT-провайдера</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><hr></li>
+                        <!-- Группа 4: Прочее -->
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI - Настройки STT</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <hgroup>
+            <h2>Настройки Speech-to-Text (STT)</h2>
+            <p>Выберите провайдера для распознавания речи и настройте необходимые параметры.</p>
+        </hgroup>
+
+        <article>
+            <label for="stt-provider-select">Провайдер STT</label>
+            <select id="stt-provider-select">
+                <option value="vosk">Vosk (локально)</option>
+                <option value="google_cloud">Google Cloud Speech-to-Text</option>
+                <option value="yandex_speechkit">Yandex SpeechKit</option>
+                <!-- Add options for other providers here -->
+            </select>
+            <small>Выбранный провайдер будет использоваться для распознавания речи во время голосового интервью.</small>
+        </article>
+
+        <div id="api-key-section">
+            <!-- Google Cloud API Key Field -->
+            <div id="google_cloud_fields" class="api-key-fields">
+                <label for="google-cloud-api-key">Google Cloud API Key</label>
+                <input type="text" id="google-cloud-api-key" placeholder="Введите ваш Google Cloud API Key">
+                <small>Получите ваш API ключ в Google Cloud Console.</small>
+            </div>
+
+            <!-- Yandex SpeechKit API Key Field -->
+            <div id="yandex_speechkit_fields" class="api-key-fields">
+                <label for="yandex-speechkit-api-key">Yandex SpeechKit API Key</label>
+                <input type="text" id="yandex-speechkit-api-key" placeholder="Введите ваш Yandex SpeechKit API Key">
+                <small>Получите ваш API ключ в Yandex Cloud Console.</small>
+            </div>
+
+            <!-- Add fields for other providers here -->
+
+            <button id="save-stt-settings" class="primary">Сохранить настройки STT</button>
+            <button id="test-stt-settings" class="secondary">Проверить настройки STT</button>
+            <p id="stt-status-message"></p>
+            <button id="start-stt-interview-btn" class="secondary" style="display: none;">Начать собеседование с выбранным STT</button>
+        </div>
+
+        <div class="notice">
+            <p><strong>Важно:</strong> Изменения, внесенные на этой странице, действуют только до перезапуска приложения. Для постоянного сохранения настроек отредактируйте файл <code>.env</code>.</p>
+            <p>Для Vosk: Убедитесь, что соответствующая языковая модель скачана и размещена в папке <code>vosk-models</code>.</p>
+            <p>Для облачных сервисов: Убедитесь, что у вас есть активный аккаунт и достаточные квоты.</p>
+        </div>
+
+        <figure id="vosk-models-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Язык</th>
+                        <th>Код</th>
+                        <th>Размер модели</th>
+                        <th>Ссылка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Русский</td><td>ru</td><td>~45 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-ru-0.42.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <tr><td>Английский (США)</td><td>en-us</td><td>~40 MB</td><td><a href="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip" target="_blank" rel="noopener noreferrer">Скачать</a></td></tr>
+                    <!-- Add more Vosk models as needed -->
+                </tbody>
+            </table>
+            <small>Полный список моделей Vosk доступен на <a href="https://alphacephei.com/vosk/models" target="_blank" rel="noopener noreferrer">официальном сайте Vosk</a>.</small>
+        </figure>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sttProviderSelect = document.getElementById('stt-provider-select');
+            const apiKeyFields = document.querySelectorAll('.api-key-fields');
+            const googleCloudFields = document.getElementById('google_cloud_fields');
+            const googleCloudApiKeyInput = document.getElementById('google-cloud-api-key');
+            const yandexSpeechKitFields = document.getElementById('yandex_speechkit_fields');
+            const yandexSpeechKitApiKeyInput = document.getElementById('yandex-speechkit-api-key');
+            const saveSettingsBtn = document.getElementById('save-stt-settings');
+            const testSettingsBtn = document.getElementById('test-stt-settings');
+            const statusMessage = document.getElementById('stt-status-message');
+            const voskModelsTable = document.getElementById('vosk-models-table');
+            const startSttInterviewBtn = document.getElementById('start-stt-interview-btn'); // New line
+
+            // Function to show/hide API key fields based on selected provider
+            function toggleApiKeyFields() {
+                apiKeyFields.forEach(field => field.style.display = 'none');
+                voskModelsTable.style.display = 'none'; // Hide Vosk table by default
+                startSttInterviewBtn.style.display = 'none'; // Hide new button by default // New line
+
+                const selectedProvider = sttProviderSelect.value;
+                if (selectedProvider === 'google_cloud') {
+                    googleCloudFields.style.display = 'block';
+                } else if (selectedProvider === 'yandex_speechkit') {
+                    yandexSpeechKitFields.style.display = 'block';
+                } else if (selectedProvider === 'vosk') {
+                    voskModelsTable.style.display = 'block';
+                }
+                // Add more conditions for other providers
+            }
+
+            // Load saved settings on page load
+            async function loadSettings() {
+                try {
+                    const response = await fetch('/api/v1/stt-config');
+                    if (response.ok) {
+                        const settings = await response.json();
+                        sttProviderSelect.value = settings.STT_PROVIDER || 'vosk';
+                        googleCloudApiKeyInput.value = settings.GOOGLE_CLOUD_SPEECH_API_KEY || '';
+                        yandexSpeechKitApiKeyInput.value = settings.YANDEX_SPEECHKIT_API_KEY || ''; // New line
+                        // Load other API keys
+                    }
+                } catch (error) {
+                    console.error('Error loading STT settings:', error);
+                    statusMessage.textContent = 'Ошибка загрузки настроек.';
+                    statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                } finally {
+                    toggleApiKeyFields(); // Ensure correct fields are shown after loading
+                }
+            }
+
+            // Event listener for provider selection change
+            sttProviderSelect.addEventListener('change', toggleApiKeyFields);
+
+            // Event listener for Save Settings button
+            saveSettingsBtn.addEventListener('click', async () => {
+                const selectedProvider = sttProviderSelect.value;
+                const payload = {
+                    STT_PROVIDER: selectedProvider
+                };
+
+                if (selectedProvider === 'google_cloud') {
+                    payload.GOOGLE_CLOUD_SPEECH_API_KEY = googleCloudApiKeyInput.value;
+                } else if (selectedProvider === 'yandex_speechkit') { // New line
+                    payload.YANDEX_SPEECHKIT_API_KEY = yandexSpeechKitApiKeyInput.value; // New line
+                }
+                // Add other API keys to payload
+
+                try {
+                    saveSettingsBtn.setAttribute('aria-busy', 'true');
+                    statusMessage.textContent = 'Сохранение настроек...';
+                    statusMessage.style.color = 'var(--pico-primary)';
+                    startSttInterviewBtn.style.display = 'none'; // Hide button during save // New line
+
+                    const response = await fetch('/api/v1/stt-config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        statusMessage.textContent = 'Настройки успешно сохранены (до перезапуска).';
+                        statusMessage.style.color = 'var(--pico-success)';
+                        startSttInterviewBtn.style.display = 'block'; // Show button on success // New line
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Ошибка сохранения настроек.');
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Ошибка: ${error.message}`;
+                    statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                    console.error('Error saving STT settings:', error);
+                } finally {
+                    saveSettingsBtn.setAttribute('aria-busy', 'false');
+                }
+            });
+
+            // Event listener for Test Settings button
+            testSettingsBtn.addEventListener('click', async () => {
+                const selectedProvider = sttProviderSelect.value;
+                const payload = {
+                    STT_PROVIDER: selectedProvider
+                };
+
+                if (selectedProvider === 'google_cloud') {
+                    payload.GOOGLE_CLOUD_SPEECH_API_KEY = googleCloudApiKeyInput.value;
+                } else if (selectedProvider === 'yandex_speechkit') { // New line
+                    payload.YANDEX_SPEECHKIT_API_KEY = yandexSpeechKitApiKeyInput.value; // New line
+                }
+                // Add other API keys to payload
+
+                try {
+                    testSettingsBtn.setAttribute('aria-busy', 'true');
+                    statusMessage.textContent = 'Тестирование настроек...';
+                    statusMessage.style.color = 'var(--pico-primary)';
+                    startSttInterviewBtn.style.display = 'none'; // Hide button during test // New line
+
+                    const response = await fetch('/api/v1/stt-test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) {
+                            statusMessage.textContent = `Тест пройден: ${result.message}`; 
+                            statusMessage.style.color = 'var(--pico-success)';
+                            startSttInterviewBtn.style.display = 'block'; // Show button on success // New line
+                        } else {
+                            statusMessage.textContent = `Тест не пройден: ${result.message}`; 
+                            statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        throw new Error(errorData.detail || 'Ошибка тестирования настроек.');
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Ошибка: ${error.message}`; 
+                    statusMessage.style.color = 'var(--pico-form-element-invalid-border-color)';
+                    console.error('Error testing STT settings:', error);
+                } finally {
+                    testSettingsBtn.setAttribute('aria-busy', 'false');
+                }
+            });
+
+            // New event listener for the "Start STT Interview" button
+            startSttInterviewBtn.addEventListener('click', () => { // New lines
+                window.location.href = '/stt-voice-interview'; // New lines
+            }); // New lines
+
+            // Initial load of settings
+            loadSettings();
+
+            document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                if (confirm('Вы уверены, что хотите очистить все кэшированные данные? Это также сбросит выбранный язык.')) {
+                    localStorage.clear();
+                    alert('Кэш очищен. Страница будет перезагружена.');
+                    window.location.reload();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
