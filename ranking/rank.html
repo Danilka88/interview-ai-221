@@ -80,7 +80,7 @@
             </header>
             <form id="rank-form">
                 <label for="vacancy-file">1. Файл с описанием вакансии (обязательно)
-                    <input type="file" id="vacancy-file" name="vacancy" required>
+                    <input type="file" id="vacancy-file" name="vacancy" accept=".txt,.md,.pdf,.docx,.rtf" required>
                 </label>
 
                 <fieldset id="criteria-weights">
@@ -128,7 +128,7 @@
                 </fieldset>
 
                 <label for="resume-files">3. Файлы с резюме (до 20 шт.)
-                    <input type="file" id="resume-files" name="resumes" multiple required>
+                    <input type="file" id="resume-files" name="resumes" accept=".txt,.md,.pdf,.docx,.rtf" multiple required>
                 </label>
                 <button type="submit" id="rank-button" aria-busy="false">Проанализировать и составить ТОП</button>
             </form>
