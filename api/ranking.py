@@ -67,17 +67,25 @@ async def rank_resumes(
         logging.info(f"[Резюме {i}/{len(resumes)}] Обработка: {resume_file.filename}")
         resume_text = None
         try:
+            logging.info(f"==> Шаг 1: Сохранение временного файла для {resume_file.filename}")
             resume_path = await save_upload_file_tmp(resume_file)
+
+            logging.info(f"==> Шаг 2: Извлечение текста из {resume_file.filename}")
             resume_text = await extract_text_from_file(resume_path)
             cleanup_file(resume_path)
             if not resume_text:
                 raise ValueError("Текст из файла не был извлечен.")
+            logging.info(f"==> Шаг 2 ЗАВЕРШЕН. Объем текста: {len(resume_text)} символов. Сниппет: {resume_text[:500]}...")
 
+            logging.info(f"==> Шаг 3: Отправка текста в LLM для анализа...")
             score_str = await resume_scorer_chain.apredict(
                 vacancy_text=vacancy_text,
                 resume_text=resume_text,
                 weights_json=json.dumps(weights_data, ensure_ascii=False, indent=2)
             )
+            logging.info(f"==> Шаг 3 ЗАВЕРШЕН. Ответ от LLM получен.")
+            logging.info(f"==> Сырой ответ от LLM: {score_str}")
+
             score_data = json.loads(score_str)
             
             score_data["filename"] = resume_file.filename

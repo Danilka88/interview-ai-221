@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile
 import io
+import asyncio
 from typing import Union
 from pathlib import Path
 
@@ -13,48 +14,64 @@ import docx
 import pypdf
 from striprtf.striprtf import rtf_to_text
 
+# --- Синхронные "воркеры" для CPU-bound операций ---
+
+def _parse_pdf_sync(content: bytes) -> str:
+    """Синхронно парсит содержимое PDF файла."""
+    pdf_stream = io.BytesIO(content)
+    reader = pypdf.PdfReader(pdf_stream)
+    text = "".join(page.extract_text() + "\n" for page in reader.pages if page.extract_text())
+    return text
+
+def _parse_docx_sync(content: bytes) -> str:
+    """Синхронно парсит содержимое DOCX файла."""
+    doc_stream = io.BytesIO(content)
+    doc = docx.Document(doc_stream)
+    full_text = [p.text for p in doc.paragraphs]
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                full_text.append(cell.text)
+    return "\n".join(full_text)
+
+def _parse_rtf_sync(content: str) -> str:
+    """Синхронно парсит содержимое RTF файла."""
+    return rtf_to_text(content)
+
+
 # --- Асинхронная логика парсинга файлов ---
 
 async def _extract_text_from_pdf(file_path: Union[str, Path]) -> str:
-    """Асинхронно извлекает текст из PDF файла."""
+    """Асинхронно читает PDF и выносит парсинг в отдельный поток."""
     try:
         async with aiofiles.open(file_path, 'rb') as f:
             content = await f.read()
-            # pypdf работает с потоком байт, поэтому мы используем io.BytesIO
-            pdf_stream = io.BytesIO(content)
-            reader = pypdf.PdfReader(pdf_stream)
-            text = "".join(page.extract_text() + "\n" for page in reader.pages if page.extract_text())
-            return text
+        # Выполняем блокирующую операцию в отдельном потоке
+        return await asyncio.to_thread(_parse_pdf_sync, content)
     except Exception as e:
-        logging.error(f"Ошибка при асинхронном чтении PDF {file_path}: {e}")
+        logging.error(f"Ошибка при обработке PDF {file_path}: {e}")
         return ""
 
 async def _extract_text_from_docx(file_path: Union[str, Path]) -> str:
-    """Асинхронно извлекает текст из DOCX файла."""
+    """Асинхронно читает DOCX и выносит парсинг в отдельный поток."""
     try:
         async with aiofiles.open(file_path, 'rb') as f:
             content = await f.read()
-            # python-docx может читать из потока байт
-            doc_stream = io.BytesIO(content)
-            doc = docx.Document(doc_stream)
-            full_text = [p.text for p in doc.paragraphs]
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        full_text.append(cell.text)
-            return "\n".join(full_text)
+        # Выполняем блокирующую операцию в отдельном потоке
+        return await asyncio.to_thread(_parse_docx_sync, content)
     except Exception as e:
-        logging.error(f"Ошибка при асинхронном чтении DOCX {file_path}: {e}")
+        logging.error(f"Ошибка при обработке DOCX {file_path}: {e}")
         return ""
 
 async def _extract_text_from_rtf(file_path: Union[str, Path]) -> str:
-    """Асинхронно извлекает текст из RTF файла."""
+    """Асинхронно читает RTF и выносит парсинг в отдельный поток."""
     try:
         async with aiofiles.open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = await f.read()
-            return rtf_to_text(content)
+        # Выполняем блокирующую операцию в отдельном потоке
+        return await asyncio.to_thread(_parse_rtf_sync, content)
     except Exception as e:
-        logging.error(f"Ошибка при асинхронном чтении RTF {file_path}: {e}")
+        logging.error(f"Ошибка при обработке RTF {file_path}: {e}")
         return ""
 
 async def _extract_text_from_plain(file_path: Union[str, Path]) -> str:
