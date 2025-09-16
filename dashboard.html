@@ -249,6 +249,7 @@
                                         <td class="actions-cell">
                                             <a href="#" data-candidate-id="${candidate.id}" data-vacancy-id="${vacancy.id}" class="start-voice">Голос</a>
                                             <a href="#" data-candidate-id="${candidate.id}" data-vacancy-id="${vacancy.id}" class="start-text">Симуляция</a>
+                                            <a href="#" data-candidate-id="${candidate.id}" data-vacancy-id="${vacancy.id}" class="start-stress">Стресс-тест</a>
                                             ${candidate.interviews.length > 0 ? `
                                                 <span style="margin: 0 0.5rem;">|</span>
                                                 ${candidate.interviews.map(interview => `<a href="#" class="view-report" data-interview-id="${interview.id}">Отчет #${interview.id}</a>`).join(' ')}
@@ -298,11 +299,21 @@
                 weights: vacancyData.weights_json
             };
             localStorage.setItem('interviewAnalysisData', JSON.stringify(context));
-            window.location.href = type === 'voice' ? '/rank/interview' : '/rank/simulation';
+            
+            let targetUrl = '';
+            if (type === 'voice') {
+                targetUrl = '/rank/interview';
+            } else if (type === 'text') {
+                targetUrl = '/rank/simulation';
+            } else if (type === 'stress') {
+                targetUrl = '/rank/stress_simulation';
+            }
+            window.location.href = targetUrl;
         }
 
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('start-voice') || e.target.classList.contains('start-text')) {
+            if (e.target.classList.contains('start-voice') || e.target.classList.contains('start-text') || e.target.classList.contains('start-stress')) {
+                e.preventDefault();
                 const candidateId = parseInt(e.target.dataset.candidateId, 10);
                 const vacancyId = parseInt(e.target.dataset.vacancyId, 10);
 
@@ -312,7 +323,13 @@
                 const candidateData = vacancyData.candidates.find(c => c.id === candidateId);
                 if (!candidateData) return;
 
-                const type = e.target.classList.contains('start-voice') ? 'voice' : 'text';
+                let type = 'text';
+                if (e.target.classList.contains('start-voice')) {
+                    type = 'voice';
+                } else if (e.target.classList.contains('start-stress')) {
+                    type = 'stress';
+                }
+
                 startInterview(type, candidateData, vacancyData);
             }
         });

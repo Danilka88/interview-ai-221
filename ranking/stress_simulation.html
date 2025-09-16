@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стресс-тест симуляция</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+
+        main.container {
+            margin-top: 1rem;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        #chat-log {
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: var(--pico-border-radius);
+            max-width: 85%;
+            width: fit-content;
+            position: relative;
+            /* Для позиционирования кнопок */
+        }
+
+        .message p {
+            margin: 0;
+            line-height: 1.5;
+            padding-bottom: 2.5rem; /* Увеличиваем нижний отступ для текста, чтобы кнопки не наезжали */
+        }
+
+        .feedback-buttons {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.5rem; /* Добавляем небольшой отступ сверху для визуального разделения */
+        }
+
+        .message strong {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: var(--pico-h6-color);
+        }
+
+        .interviewer {
+            align-self: flex-start;
+            background-color: var(--pico-secondary-background);
+        }
+
+        .candidate {
+            align-self: flex-end;
+            background-color: var(--pico-primary);
+            color: white;
+        }
+
+        .candidate>p {
+            color: white;
+        }
+
+        .candidate strong {
+            color: white;
+            opacity: 0.8;
+        }
+
+        .feedback-buttons {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .feedback-buttons button {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .feedback-buttons button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem 1rem;
+            border-top: 1px solid var(--pico-card-border);
+        }
+
+        #status-container {
+            text-align: center;
+            min-height: 40px;
+            color: var(--pico-muted-color);
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li>
+                <details class="dropdown">
+                    <summary role="button">Меню</summary>
+                    <ul>
+                        <!-- Группа 1: Основной воркфлоу -->
+                        <li><a href="/dashboard">Дашборд</a></li>
+                        <li><a href="/rank">Отбор резюме</a></li>
+                        <li><hr></li>
+                        <!-- Группа 2: Отдельные инструменты -->
+                        <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
+                        <li><a href="/voice-interview">Голосовое собеседование</a></li>
+                        <li><a href="/test">Текстовая симуляция</a></li>
+                        <li><hr></li>
+                        <!-- Группа 3: Настройки и прочее -->
+                        <li><a href="/settings">Настройки</a></li>
+                        <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
+                        <li><a href="/llm-providers/settings">Настройки LLM-провайдеров</a></li>
+                        <li><a href="/result">Последний отчет</a></li>
+                        <li><a href="#" id="clear-storage-btn">Очистить кэш</a></li>
+                    </ul>
+                </details>
+            </li>
+        </ul>
+        <ul>
+            <li><strong>VTB AI</strong></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        <div id="interview-container" style="display: flex; flex-direction: column; height: 100%;">
+            <header>
+                <hgroup>
+                    <h2 id="interview-title" style="text-align: center; margin-bottom: 0;">Идет стресс-тест симуляция...</h2>
+                    <p style="text-align: center; margin: 0;">Вы наблюдаете за реакцией AI-рекрутера на 'сложного' кандидата.</p>
+                </hgroup>
+            </header>
+            <section id="chat-log"></section>
+            <div id="status-container">
+                <small id="status" aria-busy="true">Подготовка к диалогу...</small>
+            </div>
+            <footer>
+                <button id="finishSimulationBtn" class="secondary">Завершить и скачать</button>
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const chatLog = document.getElementById('chat-log');
+        const finishSimulationBtn = document.getElementById('finishSimulationBtn');
+
+        let ws;
+        let interviewContext = {};
+        let conversationHistory = [];
+
+        function addMessage(sender, text) {
+            const senderMap = {
+                'Interviewer': 'AI Рекрутер',
+                'Candidate': 'AI Кандидат (Стресс-тест)'
+            };
+            const localizedSender = senderMap[sender] || sender;
+
+            const messageIndex = conversationHistory.length; // Индекс текущего сообщения
+
+            const article = document.createElement('article');
+            const senderClass = sender.toLowerCase() === 'candidate' ? 'candidate' : 'interviewer';
+            article.className = `message ${senderClass}`;
+            article.innerHTML = `<strong>${localizedSender}</strong><p>${text}</p>`;
+
+            // Добавляем кнопки лайка/дизлайка только для сообщений интервьюера
+            if (sender === 'Interviewer') {
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.className = 'feedback-buttons';
+                feedbackDiv.innerHTML = `
+                    <button class="like-btn" data-message-index="${messageIndex}" data-feedback="1">+</button>
+                    <button class="dislike-btn" data-message-index="${messageIndex}" data-feedback="0">-</button>
+                `;
+                article.appendChild(feedbackDiv);
+            }
+
+            chatLog.appendChild(article);
+            chatLog.scrollTop = chatLog.scrollHeight;
+            conversationHistory.push({ sender, text, feedback: null }); // Добавляем поле feedback
+        }
+
+        // Обработчик кликов по кнопкам лайка/дизлайка
+        chatLog.addEventListener('click', (e) => {
+            if (e.target.classList.contains('like-btn') || e.target.classList.contains('dislike-btn')) {
+                const button = e.target;
+                const messageIndex = parseInt(button.dataset.messageIndex);
+                const feedbackValue = parseInt(button.dataset.feedback);
+
+                // Обновляем историю
+                if (conversationHistory[messageIndex]) {
+                    conversationHistory[messageIndex].feedback = feedbackValue;
+                }
+
+                // Отключаем все кнопки для этого сообщения
+                const parentDiv = button.closest('.feedback-buttons');
+                if (parentDiv) {
+                    Array.from(parentDiv.children).forEach(btn => {
+                        btn.disabled = true;
+                        if (parseInt(btn.dataset.feedback) === feedbackValue) {
+                            btn.classList.add('active');
+                            if (feedbackValue === 0) btn.classList.add('dislike');
+                        }
+                    });
+                }
+            }
+        });
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/stress_test`);
+
+            ws.onopen = () => {
+                statusDiv.textContent = 'Соединение установлено. Отправка контекста...';
+                ws.send(JSON.stringify({ type: 'start_interview', ...interviewContext }));
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'text') {
+                    addMessage(message.sender, message.data);
+                } else if (message.type === 'status') {
+                    statusDiv.textContent = message.data;
+                } else if (message.type === 'error') {
+                    statusDiv.textContent = `Ошибка: ${message.data}`;
+                    statusDiv.setAttribute('aria-busy', 'false');
+                }
+            };
+
+            ws.onerror = (error) => {
+                statusDiv.textContent = 'Ошибка WebSocket соединения.';
+                statusDiv.setAttribute('aria-busy', 'false');
+                console.error('WebSocket Error:', error);
+            };
+            ws.onclose = () => {
+                statusDiv.textContent = 'Симуляция завершена.';
+                statusDiv.setAttribute('aria-busy', 'false');
+                finishSimulationBtn.disabled = true;
+            };
+        }
+
+        finishSimulationBtn.addEventListener('click', () => {
+            if (ws) ws.close();
+            const dataToAnalyze = { ...interviewContext, conversation_history: conversationHistory };
+            localStorage.setItem('interviewAnalysisData', JSON.stringify(dataToAnalyze));
+            window.location.href = '/rank/interview_result';
+        });
+
+        window.addEventListener('load', () => {
+            const storedData = localStorage.getItem('interviewAnalysisData');
+            if (storedData) {
+                interviewContext = JSON.parse(storedData);
+                connect();
+            } else {
+                document.body.innerHTML = '<main class="container"><h1>Ошибка</h1><p>Не найдены данные для начала симуляции. Пожалуйста, вернитесь на страницу отбора и выберите кандидата.</p><a href="/rank" role="button">Вернуться к отбору</a></main>';
+            }
+        });
+
+        document.getElementById('clear-storage-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('Вы уверены, что хотите очистить все загруженные данные?')) {
+                localStorage.clear();
+                alert('Кэш очищен. Страница будет перезагружена.');
+                window.location.href = '/';
+            }
+        });
+
+    </script>
+</body>
+
+</html>

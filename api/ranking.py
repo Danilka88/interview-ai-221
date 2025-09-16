@@ -30,6 +30,10 @@ async def get_rank_interview_page():
 async def get_rank_simulation_page():
     return HTMLResponse(content=Path("ranking/simulation.html").read_text(encoding="utf-8"))
 
+@router.get("/rank/stress_simulation")
+async def get_rank_stress_simulation_page():
+    return HTMLResponse(content=Path("ranking/stress_simulation.html").read_text(encoding="utf-8"))
+
 @router.get("/rank/interview_result")
 async def get_rank_interview_result_page():
     return HTMLResponse(content=Path("ranking/interview_result.html").read_text(encoding="utf-8"))

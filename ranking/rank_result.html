@@ -265,6 +265,7 @@
                                 <div class="grid">
                                     <button data-candidate-id="${candidate.id}" class="start-voice">Голос</button>
                                     <button data-candidate-id="${candidate.id}" class="secondary start-text">Симуляция</button>
+                                    <button data-candidate-id="${candidate.id}" class="contrast start-stress">Стресс-тест</button>
                                 </div>
                             </div>
                         `;
@@ -289,8 +290,17 @@
                 resume_text: resumeData.resume_text,
                 weights: weights // Add weights to the context
             };
-            localStorage.setItem('interviewAnalysisData', JSON.stringify(context)); // Use the key for the final analysis page
-            window.location.href = type === 'voice' ? '/rank/interview' : '/rank/simulation';
+            localStorage.setItem('interviewAnalysisData', JSON.stringify(context));
+
+            let targetUrl = '';
+            if (type === 'voice') {
+                targetUrl = '/rank/interview';
+            } else if (type === 'text') {
+                targetUrl = '/rank/simulation';
+            } else if (type === 'stress') {
+                targetUrl = '/rank/stress_simulation';
+            }
+            window.location.href = targetUrl;
         }
 
         document.addEventListener('click', (e) => {
@@ -303,6 +313,11 @@
                 const candidateId = parseInt(e.target.dataset.candidateId, 10);
                 const resumeData = candidatesList.find(c => c.id === candidateId);
                 startInterview('text', resumeData);
+            }
+            if (e.target.matches('.start-stress')) {
+                const candidateId = parseInt(e.target.dataset.candidateId, 10);
+                const resumeData = candidatesList.find(c => c.id === candidateId);
+                startInterview('stress', resumeData);
             }
         });
 

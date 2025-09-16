@@ -15,7 +15,7 @@ from services.ai_services import analyst_chain, create_llm_chain, interviewer_ll
 from services.candidate_service import save_interview_result
 # Обновленный импорт
 from services.voice_processing import get_vosk_model, silero_tts_instance, SAMPLE_RATE, text_to_speech
-from prompts.interview_prompts import DEFAULT_JOB_DESCRIPTION, INTERVIEW_PLAN, CANDIDATE_SYSTEM_PROMPT, CANDIDATE_INFO_BLOCK, RECOMMENDED_QUESTIONS_BLOCK, INTERVIEWER_SYSTEM_PROMPT
+from prompts.interview_prompts import DEFAULT_JOB_DESCRIPTION, INTERVIEW_PLAN, CANDIDATE_SYSTEM_PROMPT, STRESS_CANDIDATE_SYSTEM_PROMPT, CANDIDATE_INFO_BLOCK, RECOMMENDED_QUESTIONS_BLOCK, INTERVIEWER_SYSTEM_PROMPT
 
 router = APIRouter()
 
@@ -250,5 +250,72 @@ async def websocket_live_endpoint(websocket: WebSocket):
     except Exception as e:
         logging.error(f"Ошибка в WebSocket (live): {e}", exc_info=True)
         # Попытка отправить сообщение об ошибке клиенту, если соединение еще открыто
+        if not websocket.client_state.value == 3: # 3 is DISCONNECTED state
+            await websocket.send_json({"type": "error", "message": "Произошла внутренняя ошибка сервера."})
+
+@router.websocket("/ws/stress_test")
+async def websocket_stress_test_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    logging.info("Клиент для СТРЕСС-ТЕСТ СИМУЛЯЦИИ подключен.")
+
+    try:
+        initial_data = await websocket.receive_json()
+        if initial_data.get("type") != "start_interview":
+            await websocket.close()
+            return
+
+        resume_text = initial_data.get("resume_text")
+        if not resume_text:
+            await websocket.send_json({"type": "error", "data": "Для запуска симуляции необходимо загрузить резюме кандидата."})
+            await websocket.close()
+            return
+
+        vacancy_text = initial_data.get("vacancy_text") or DEFAULT_JOB_DESCRIPTION
+        generated_questions = initial_data.get("generated_questions", "")
+
+        interviewer_template = _create_interviewer_template(vacancy_text, resume_text, generated_questions)
+        interviewer_chain = create_llm_chain(interviewer_llm, interviewer_template)
+
+        candidate_template = f'''{STRESS_CANDIDATE_SYSTEM_PROMPT.format(resume_text=resume_text)}
+
+Текущий диалог:
+{{chat_history}}
+Интервьюер: {{human_input}}
+Твой ответ:'''
+        candidate_chain = create_llm_chain(candidate_llm, candidate_template)
+
+        chat_history = []
+        await websocket.send_json({"type": "status", "data": "Стресс-тест симуляция начинается... Интервьюер готовит первый вопрос."})
+        question = await interviewer_chain.apredict(human_input="Начни собеседование, представившись и обозначив вакансию и ключевые темы для обсуждения.", chat_history="")
+        await websocket.send_json({"type": "text", "sender": "Interviewer", "data": question})
+        chat_history.append(f"Interviewer: {question}")
+
+        for _ in range(15):
+            history_str = "\n".join(chat_history)
+            await websocket.send_json({"type": "status", "data": "Кандидат обдумывает ответ..."})
+            answer = await candidate_chain.apredict(human_input=question, chat_history=history_str)
+            await websocket.send_json({"type": "text", "sender": "Candidate", "data": answer})
+            chat_history.append(f"Candidate: {answer}")
+
+            if len(chat_history) > 20:
+                question = "Спасибо, у меня на этом все. Нажмите кнопку «Завершить», чтобы закончить собеседование."
+            else:
+                history_str = "\n".join(chat_history)
+                await websocket.send_json({"type": "status", "data": "Интервьюер анализирует ответ..."})
+                question = await interviewer_chain.apredict(human_input=answer, chat_history=history_str)
+            
+            await websocket.send_json({"type": "text", "sender": "Interviewer", "data": question})
+            chat_history.append(f"Interviewer: {question}")
+
+            if "Нажмите кнопку «Завершить»" in question:
+                break
+        
+        await websocket.send_json({"type": "status", "data": "Симуляция завершена."})
+        await websocket.close()
+
+    except WebSocketDisconnect:
+        logging.info("Клиент для стресс-тест симуляции отключен.")
+    except Exception as e:
+        logging.error(f"Ошибка в WebSocket (стресс-тест симуляция): {e}", exc_info=True)
         if not websocket.client_state.value == 3: # 3 is DISCONNECTED state
             await websocket.send_json({"type": "error", "message": "Произошла внутренняя ошибка сервера."})
