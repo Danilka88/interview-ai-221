@@ -245,6 +245,14 @@
 
         async function toggleRecording(start) {
             if (start) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    statusDiv.textContent = 'Ошибка: Доступ к микрофону возможен только на страницах с HTTPS или localhost.';
+                    console.error('MediaDevices API not supported on this browser/context.');
+                    isRecording = false;
+                    talkButton.classList.remove('recording');
+                    return;
+                }
+
                 if (ws.readyState !== WebSocket.OPEN) { statusDiv.textContent = 'Нет соединения с сервером.'; return; }
                 isRecording = true;
                 talkButton.classList.add('recording');

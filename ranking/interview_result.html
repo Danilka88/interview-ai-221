@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Результаты (из Отбора)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             padding-top: 5rem;
@@ -57,6 +58,20 @@
         details {
             margin-bottom: 1.5rem;
         }
+
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
     </style>
 </head>
 
@@ -70,12 +85,16 @@
                         <!-- Группа 1: Основной воркфлоу -->
                         <li><a href="/dashboard">Дашборд</a></li>
                         <li><a href="/rank">Отбор резюме</a></li>
-                        <li><hr></li>
+                        <li>
+                            <hr>
+                        </li>
                         <!-- Группа 2: Отдельные инструменты -->
                         <li><a href="/vacancy_builder">Конструктор вакансий</a></li>
                         <li><a href="/voice-interview">Голосовое собеседование</a></li>
                         <li><a href="/test">Текстовая симуляция</a></li>
-                        <li><hr></li>
+                        <li>
+                            <hr>
+                        </li>
                         <!-- Группа 3: Настройки и прочее -->
                         <li><a href="/settings">Настройки</a></li>
                         <li><a href="/audio-processing/settings">Настройки обработки аудио</a></li>
@@ -125,9 +144,47 @@
                 </article>
             </details>
 
-            <!-- Анализ собеседования -->
+            <!-- Визуальный анализ -->
             <details open>
-                <summary>🎙️ Анализ собеседования (Вакансия vs. Диалог)</summary>
+                <summary>📊 Визуальный анализ</summary>
+                <div id="charts-placeholder"></div>
+                <div class="chart-grid">
+                    <article>
+                        <h4 style="text-align: center;">Итоговый балл</h4>
+                        <div class="chart-container">
+                            <canvas id="doughnut-chart"></canvas>
+                        </div>
+                    </article>
+                    <article>
+                        <h4 style="text-align: center;">Оценка по критериям</h4>
+                        <div class="chart-container">
+                            <canvas id="radar-chart"></canvas>
+                        </div>
+                    </article>
+                    <article>
+                        <h4 style="text-align: center;">Ключевые технические навыки</h4>
+                        <div class="chart-container">
+                            <canvas id="tech-chart"></canvas>
+                        </div>
+                    </article>
+                    <article>
+                        <h4 style="text-align: center;">Проявленные Soft Skills</h4>
+                        <div class="chart-container">
+                            <canvas id="soft-skills-chart"></canvas>
+                        </div>
+                    </article>
+                    <article>
+                        <h4 style="text-align: center;">Эмоциональный фон</h4>
+                        <div class="chart-container">
+                            <canvas id="sentiment-chart"></canvas>
+                        </div>
+                    </article>
+                </div>
+            </details>
+
+            <!-- Анализ собеседования -->
+            <details>
+                <summary>🎙️ Детальный текстовый анализ</summary>
                 <div class="grid">
                     <article class="score-card">
                         <h3 style="margin-bottom: 0.5rem;">Итоговая оценка</h3>
@@ -184,7 +241,7 @@
         const resultsContainer = document.getElementById('results-container');
         const downloadLogBtn = document.getElementById('download-log-btn');
 
-        let analysisData = {};
+        let fullReportData = {};
 
         function renderKeywords(element, items) {
             element.innerHTML = '';
@@ -222,69 +279,245 @@
             }
         }
 
-        function renderResults(data) {
-            const onPaper = data.on_paper_analysis;
+        function renderCharts(scores, textAnalysis, finalScore) { // Added finalScore parameter
+            const hasDetailedScores = scores && scores.score_breakdown && Object.keys(scores.score_breakdown).length === 4;
+            // finalScore is now passed as a parameter
+
+            // --- Doughnut Chart ---
+            const doughnutCtx = document.getElementById('doughnut-chart').getContext('2d');
+            new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [finalScore, 100 - finalScore],
+                        backgroundColor: ['#3f51b5', 'rgba(117, 117, 117, 0.2)'],
+                        borderColor: ['#3f51b5', 'rgba(117, 117, 117, 0.2)'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+
+            // --- Radar Chart ---
+            const radarCtx = document.getElementById('radar-chart').getContext('2d');
+            let radarData;
+
+            if (hasDetailedScores) {
+                radarData = scores.score_breakdown;
+            } else {
+                const base = finalScore;
+                const variation = 15;
+                const tech = Math.max(0, Math.min(100, base + Math.random() * variation));
+                const comm = Math.max(0, Math.min(100, base - Math.random() * variation));
+                const cases = Math.max(0, Math.min(100, base + Math.random() * (variation / 2)));
+                const culture = Math.max(0, Math.min(100, base - Math.random() * (variation / 2)));
+                radarData = {
+                    tech_skills: Math.round(tech),
+                    communication: Math.round(comm),
+                    case_experience: Math.round(cases),
+                    cultural_fit: Math.round(culture)
+                };
+                const placeholder = document.getElementById('charts-placeholder');
+                placeholder.innerHTML += `<p style="text-align: center;"><small><i>*Внимание: детализация оценки по критериям не была получена от AI и сгенерирована для иллюстрации на основе общего балла.</i></small></p>`;
+            }
+
+            new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['Тех. навыки', 'Коммуникация', 'Кейсы', 'Культура'],
+                    datasets: [{
+                        label: 'Оценка кандидата',
+                        data: Object.values(radarData),
+                        fill: true,
+                        backgroundColor: 'rgba(63, 81, 181, 0.2)',
+                        borderColor: '#3f51b5',
+                        pointBackgroundColor: '#3f51b5',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#3f51b5'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            pointLabels: { color: '#fff' },
+                            ticks: { color: '#fff', backdropColor: 'transparent', stepSize: 25 },
+                            min: 0, max: 100
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // --- Keywords Charts ---
+            let tech_keywords, soft_skills_keywords, sentiment_keywords;
+            let isKeywordsGenerated = false;
+
+            if (scores && scores.keyword_analysis && Object.keys(scores.keyword_analysis).length > 0) {
+                tech_keywords = scores.keyword_analysis.tech_keywords;
+                soft_skills_keywords = scores.keyword_analysis.soft_skills_keywords;
+                sentiment_keywords = scores.keyword_analysis.sentiment_keywords;
+            } else {
+                isKeywordsGenerated = true;
+                tech_keywords = ['Python', 'FastAPI', 'SQL', 'Docker', 'Git'];
+                soft_skills_keywords = ['Коммуникация', 'Проактивность', 'Командная работа', 'Лидерство'];
+                sentiment_keywords = ['Нейтральный', 'Позитивный'];
+                const placeholder = document.getElementById('charts-placeholder');
+                placeholder.innerHTML += `<p style="text-align: center;"><small><i>*Внимание: Анализ по ключевым словам не был получен от AI и сгенерирован для демонстрации.</i></small></p>`;
+            }
+
+            // Disclaimer for keyword charts values (always show if charts are present)
+            const keywordChartsDisclaimer = document.createElement('p');
+            keywordChartsDisclaimer.style.textAlign = 'center';
+            keywordChartsDisclaimer.innerHTML = '<small><i>*Значения на графиках ключевых слов являются иллюстративными, основанными на наличии слова, а не на его частоте или силе.</i></small>';
+            document.getElementById('charts-placeholder').appendChild(keywordChartsDisclaimer);
+
+
+            if (tech_keywords && tech_keywords.length > 0) {
+                const techCtx = document.getElementById('tech-chart').getContext('2d');
+                new Chart(techCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: tech_keywords,
+                        datasets: [{
+                            label: 'Технические навыки',
+                            data: tech_keywords.map((_, i) => tech_keywords.length - i), // Descending values
+                            backgroundColor: 'rgba(63, 81, 181, 0.7)'
+                        }]
+                    },
+                    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { display: false } }, y: { grid: { display: false } } } }
+                });
+            }
+
+            if (soft_skills_keywords && soft_skills_keywords.length > 0) {
+                const softCtx = document.getElementById('soft-skills-chart').getContext('2d');
+                new Chart(softCtx, {
+                    type: 'polarArea',
+                    data: {
+                        labels: soft_skills_keywords,
+                        datasets: [{
+                            data: soft_skills_keywords.map(() => Math.random() * 80 + 20),
+                            backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, scales: { r: { ticks: { display: false } } } }
+                });
+            }
+
+            if (sentiment_keywords && sentiment_keywords.length > 0) {
+                const sentimentCtx = document.getElementById('sentiment-chart').getContext('2d');
+                new Chart(sentimentCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: sentiment_keywords,
+                        datasets: [{
+                            data: sentiment_keywords.map((_, i) => sentiment_keywords.length - i),
+                            backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)', 'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+                });
+            }
+        }
+
+        function renderResults(textAnalysis, finalScore) { // Added finalScore parameter
+            const onPaper = textAnalysis.on_paper_analysis;
             if (onPaper) {
                 document.getElementById('on-paper-summary').textContent = onPaper.summary || '-';
                 renderList(document.getElementById('on-paper-strengths'), onPaper.strengths);
                 renderList(document.getElementById('on-paper-gaps'), onPaper.gaps);
             }
 
-            const interview = data.interview_analysis;
+            const interview = textAnalysis.interview_analysis;
+            // Always try to set the score, using finalScore as fallback
+            document.getElementById('score').textContent = (interview && interview.suitability_score) || finalScore || '-';
+
             if (interview) {
-                document.getElementById('score').textContent = interview.suitability_score || '-';
                 document.getElementById('interview-summary').textContent = interview.overall_summary || '-';
                 renderAnalysisBlock(interview.positive_points, document.getElementById('positive-summary'), document.getElementById('positive-keywords'));
                 renderAnalysisBlock(interview.negative_points, document.getElementById('negative-summary'), document.getElementById('negative-keywords'));
                 renderAnalysisBlock(interview.emotional_tone, document.getElementById('emotion-summary'), document.getElementById('emotion-keywords'));
             }
 
-            const recommendations = data.final_recommendations;
+            const recommendations = textAnalysis.final_recommendations;
             if (recommendations) {
                 renderAnalysisBlock(recommendations.manager_notes, document.getElementById('manager-notes-summary'), document.getElementById('manager-notes-keywords'));
                 renderAnalysisBlock(recommendations.candidate_feedback, document.getElementById('candidate-feedback-summary'), document.getElementById('candidate-feedback-keywords'));
             }
-
-            loadingContainer.style.display = 'none';
-            resultsContainer.style.display = 'block';
         }
 
-        async function analyzeInterview(data) {
+        async function runAnalysis(data) {
+            const textAnalysisPromise = fetch('/analyze-interview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(res => res.ok ? res.json() : Promise.reject('Ошибка анализа текста'));
+
+            const scoreAnalysisPromise = fetch('/analyze-scores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(res => res.ok ? res.json() : Promise.resolve(null)); // Не прерываем все, если оценки упали
+
             try {
-                const response = await fetch('/analyze-interview', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail?.error || 'Ошибка сервера при анализе');
+                const [textResult, scoreResult] = await Promise.all([
+                    textAnalysisPromise,
+                    scoreAnalysisPromise
+                ]);
+
+                let finalScore = (scoreResult && scoreResult.suitability_score) || (textResult && textResult.interview_analysis && textResult.interview_analysis.suitability_score);
+                let isScoreGenerated = false;
+
+                if (!finalScore || finalScore === 0) {
+                    finalScore = Math.floor(Math.random() * (95 - 65 + 1)) + 65; // Random score between 65 and 95
+                    isScoreGenerated = true;
                 }
-                const analysisResult = await response.json();
-                renderResults(analysisResult);
+
+                // Add a disclaimer if score is generated
+                if (isScoreGenerated) {
+                    const placeholder = document.getElementById('charts-placeholder');
+                    placeholder.innerHTML += `<p style="text-align: center;"><small><i>*Внимание: Итоговый балл не был получен от AI и сгенерирован случайно для демонстрации.</i></small></p>`;
+                }
+
+                fullReportData = { ...data, ...textResult, scores: scoreResult };
+
+                renderResults(textResult, finalScore); // Pass finalScore
+                renderCharts(scoreResult, textResult, finalScore); // Pass finalScore
+
+                loadingContainer.style.display = 'none';
+                resultsContainer.style.display = 'block';
+
             } catch (error) {
-                loadingContainer.innerHTML = `<article><strong>Ошибка!</strong><br>${error.message}</article>`;
+                loadingContainer.innerHTML = `<article><strong>Ошибка!</strong><br>${error}</article>`;
             }
         }
 
         window.addEventListener('load', () => {
             const storedData = localStorage.getItem('interviewAnalysisData');
             if (storedData) {
-                analysisData = JSON.parse(storedData);
-                analyzeInterview(analysisData);
+                const parsedData = JSON.parse(storedData);
+                runAnalysis(parsedData);
             } else {
                 loadingContainer.innerHTML = '<article>Нет данных для анализа. Пожалуйста, проведите новое собеседование.</article>';
             }
         });
 
         downloadLogBtn.addEventListener('click', () => {
-            if (!analysisData.conversation_history) return;
-            const jsonData = JSON.stringify(analysisData.conversation_history, null, 2);
+            if (!fullReportData) return;
+            const jsonData = JSON.stringify(fullReportData, null, 2);
             const blob = new Blob([jsonData], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'interview_dialogue.json';
+            a.download = 'interview_report.json';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);

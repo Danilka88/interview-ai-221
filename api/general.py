@@ -2,10 +2,12 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse
 from pathlib import Path
 import logging
+import json
 
 from services.file_processing import extract_text_from_file, save_upload_file_tmp, cleanup_file
-from services.ai_services import question_gen_chain, build_vacancy_description
-from core.models import VacancyBuildRequest, CriterionData
+from services.ai_services import question_gen_chain, build_vacancy_description, scoring_chain
+from core.models import AnalysisRequest, VacancyBuildRequest, CriterionData
+from prompts.interview_prompts import DEFAULT_JOB_DESCRIPTION
 
 router = APIRouter()
 
@@ -33,13 +35,13 @@ async def get_settings_page():
 async def get_vacancy_builder():
     return Path("vacancy_builder/index.html").read_text(encoding="utf-8")
 
-    @router.get("/voice-interview")
-    async def get_voice_interview():
-        return HTMLResponse(content=Path("index.html").read_text(encoding="utf-8"))
+@router.get("/voice-interview")
+async def get_voice_interview():
+    return HTMLResponse(content=Path("index.html").read_text(encoding="utf-8"))
 
-    @router.get("/stt-voice-interview")
-    async def get_stt_voice_interview():
-        return HTMLResponse(content=Path("stt_interview_page.html").read_text(encoding="utf-8"))
+@router.get("/stt-voice-interview")
+async def get_stt_voice_interview():
+    return HTMLResponse(content=Path("stt_interview_page.html").read_text(encoding="utf-8"))
 
 @router.post("/api/v1/build-vacancy-description")
 async def api_build_vacancy_description(request: VacancyBuildRequest):
@@ -79,3 +81,34 @@ async def upload_resume(file: UploadFile = File(...)):
     if not text:
         raise HTTPException(status_code=400, detail=f"Не удалось извлечь текст из файла {file.filename}.")
     return {"filename": file.filename, "resume_text": text}
+
+@router.post("/analyze-scores")
+async def analyze_scores(data: AnalysisRequest):
+    """
+    Анализирует диалог и возвращает только числовые оценки для графиков.
+    """
+    try:
+        history_str = "\n".join([f"{log.sender}: {log.text}" for log in data.conversation_history])
+        logging.info("Начинаю числовой анализ для графиков...")
+
+        prompt_variables = {
+            "vacancy_text": (data.vacancy_text or DEFAULT_JOB_DESCRIPTION),
+            "resume_text": (data.resume_text or "Резюме не предоставлено."),
+            "dialogue_log": history_str,
+            "weights_json": json.dumps(data.weights, ensure_ascii=False, indent=2) if data.weights else "{}"
+        }
+
+        scores_str = await scoring_chain.apredict(**prompt_variables)
+        logging.info(f"Числовой анализ завершен. Сырой ответ от LLM: {scores_str}")
+
+        try:
+            scores_json = json.loads(scores_str)
+        except json.JSONDecodeError as json_e:
+            logging.error(f"Ошибка парсинга JSON от LLM: {json_e}. Сырой ответ: '{scores_str}'", exc_info=True)
+            raise HTTPException(status_code=500, detail={"error": "Ошибка парсинга ответа от AI."})
+        
+        return scores_json
+
+    except Exception as e:
+        logging.error(f"Ошибка при числовом анализе для графиков: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail={"error": "Ошибка на сервере при расчете оценок."})

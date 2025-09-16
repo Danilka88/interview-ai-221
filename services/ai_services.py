@@ -10,7 +10,8 @@ from langchain.chains import LLMChain
 from core.config import settings
 from prompts.interview_prompts import QUESTION_GEN_PROMPT, VACANCY_TECH_SUMMARY_PROMPT
 from prompts.analysis_prompts import ANALYST_SYSTEM_PROMPT
-from prompts.ranking_prompts import RESUME_SCORER_PROMPT, VACANCY_BUILDER_PROMPT # Добавлено
+from prompts.ranking_prompts import RESUME_SCORER_PROMPT, VACANCY_BUILDER_PROMPT
+from prompts.chart_prompts import SCORING_ANALYST_PROMPT
 
 # --- Инициализация LLM на основе настроек ---
 interviewer_llm = ChatOllama(model=settings.LLM_INTERVIEWER_MODEL, temperature=0.7)
@@ -18,8 +19,9 @@ candidate_llm = ChatOllama(model=settings.LLM_CANDIDATE_MODEL, temperature=0.7)
 question_gen_llm = ChatOllama(model=settings.LLM_QUESTION_GEN_MODEL, temperature=0.5)
 # Модель для анализа и скоринга должна уметь работать с JSON
 analyst_llm = ChatOllama(model=settings.LLM_ANALYST_MODEL, temperature=0.2, format="json")
+scoring_llm = ChatOllama(model=settings.LLM_ANALYST_MODEL, temperature=0.1, format="json")
 # Новый LLM для генерации текста без JSON формата
-text_llm = ChatOllama(model=settings.LLM_ANALYST_MODEL, temperature=0.2) # Без format="json"
+text_llm = ChatOllama(model=settings.LLM_ANALYST_MODEL, temperature=0.2)
 
 # --- Инициализация цепочек LLM с использованием промптов ---
 question_gen_chain = LLMChain(
@@ -34,27 +36,29 @@ analyst_chain = LLMChain(
     verbose=False
 )
 
+scoring_chain = LLMChain(
+    llm=scoring_llm,
+    prompt=PromptTemplate.from_template(SCORING_ANALYST_PROMPT),
+    verbose=False
+)
+
 resume_scorer_chain = LLMChain(
     llm=analyst_llm, 
     prompt=PromptTemplate.from_template(RESUME_SCORER_PROMPT), 
     verbose=False
 )
 
-# Новая цепочка для конструктора вакансий
 vacancy_builder_chain = LLMChain(
-    llm=text_llm, # Используем text_llm
+    llm=text_llm,
     prompt=PromptTemplate.from_template(VACANCY_BUILDER_PROMPT),
     verbose=False
 )
 
-# top_ranker_chain был удален для упрощения логики
-
 vacancy_tech_summary_chain = LLMChain(
-    llm=text_llm, # Используем text_llm, так как нам не нужен JSON
+    llm=text_llm,
     prompt=PromptTemplate.from_template(VACANCY_TECH_SUMMARY_PROMPT),
     verbose=False
 )
-
 
 def create_llm_chain(llm_instance, template):
     """Фабричная функция для создания кастомных цепочек LLM для диалогов."""
@@ -68,16 +72,11 @@ async def build_vacancy_description(vacancy_text: str, weights: Dict) -> str:
     """
     logging.info(f"Начинаю генерацию описания вакансии с LLM для: {vacancy_text[:50]}...")
     try:
-                # Преобразуем объекты CriterionData в простые словари для JSON сериализации
         processed_weights = {}
         for key, value in weights.items():
-            # Предполагаем, что value - это объект, который имеет атрибуты 'weight' и 'description'
-            # Если value - это уже словарь, то просто используем его
             if isinstance(value, dict):
                 processed_weights[key] = value
             else:
-                # Если value - это объект CriterionData, преобразуем его
-                # Это предполагает, что CriterionData имеет атрибуты weight и description
                 processed_weights[key] = {
                     "weight": value.weight,
                     "description": value.description
@@ -144,7 +143,6 @@ async def score_and_sort_resumes(vacancy_text: str, resumes: List[Dict]) -> List
             })
             continue
             
-    # Сортируем по убыванию оценки. Ошибки (-1) окажутся в конце.
     sorted_resumes = sorted(scored_resumes, key=lambda x: x.get('score', 0), reverse=True)
     return sorted_resumes
 
