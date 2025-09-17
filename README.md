@@ -18,12 +18,13 @@
 - **Предварительная обработка аудио:** Новый модуль для шумоподавления аудио перед передачей в STT. Настраивается через отдельную страницу (`/audio-processing/settings`) и может быть интегрирован в голосовое собеседование. Подробнее см. в [audio_processing/README.md](audio_processing/README.md).
 - **LLM Провайдеры:** Новый модуль для подключения сторонних LLM API (OpenAI, YandexGPT, Sber GigaChat) через LangChain. Позволяет использовать различные LLM для генерации текста. Функционал доступен через отдельную страницу настроек (`/llm-providers/settings`), а также через специальный API (`/api/v1/llm-providers/generate`) и Webhook (`/api/v1/llm-providers/webhook/generate`), не затрагивая основной LLM приложения. Подробнее см. в [llm_providers/README.md](llm_providers/README.md).
 - **Интеграция речи:** Использует офлайн-модель Vosk для распознавания и Silero для синтеза речи.
+- **Прозрачная интеграция с OpenRouter:** Возможность использовать облачные модели через API OpenRouter вместо локального Ollama без изменения основного кода, благодаря внешнему коннектору.
 
 ## Технологический стек
 
 - **Бэкенд:** Python, FastAPI, LangChain, Uvicorn, websockets, aiofiles, Pydantic-settings, Pydantic, httpx, **SQLAlchemy (для ORM), SQLite (база данных), pypdf, python-docx, striprtf (для обработки файлов)**
 - **Фронтенд:** HTML5, Pico.css, ванильный JavaScript, Chart.js (для визуализации данных)
-- **LLM:** Ollama (гибкая настройка моделей через `.env`)
+- **LLM:** Локально через Ollama или облачные модели через OpenRouter (с помощью коннектора).
 - **Распознавание речи (STT):** Гибкая архитектура с поддержкой Vosk (локально) и возможностью интеграции облачных сервисов (Google Cloud Speech-to-Text, Yandex SpeechKit).
 - **Синтез речи (TTS):** Silero Models
 
@@ -135,6 +136,54 @@ python main.py init_db
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Приложение будет доступно в вашем браузере по адресу `http://localhost:8000`.
+
+### Альтернатива: Использование OpenRouter вместо локального Ollama
+
+Если у вас нет возможности запустить Ollama локально или вы хотите использовать более мощные облачные модели, вы можете использовать коннектор к сервису OpenRouter. Это позволит основному приложению работать без изменений, направляя все запросы к LLM через OpenRouter.
+
+1.  **Перейдите в директорию коннектора:**
+    ```bash
+    cd openrouter_connector
+    ```
+
+2.  **Создайте виртуальное окружение и установите зависимости:**
+    ```bash
+    # Для macOS/Linux
+    python3 -m venv venv
+    source venv/bin/activate
+
+    # Для Windows
+    python -m venv venv
+    venv\Scripts\activate
+    
+    pip install -r requirements.txt
+    ```
+
+3.  **Настройте окружение для коннектора:**
+    - Создайте файл `.env` **внутри директории `openrouter_connector`**.
+    - Добавьте в него ваш API-ключ от OpenRouter:
+      ```env
+      OPENROUTER_API_KEY="sk-or-v1-..."
+      ```
+
+4.  **Настройте маппинг моделей (опционально):**
+    - Откройте файл `openrouter_connector/app.py`.
+    - В словаре `MODEL_MAPPING` вы можете указать, какие модели из OpenRouter будут использоваться вместо моделей, прописанных в `.env` основного проекта.
+      ```python
+      MODEL_MAPPING = {
+          "gemma3:4b": "google/gemma-3-27b-it:free",
+          "qwen2.5-coder:3b": "google/gemma-3-12b-it:free",
+          # ... другие модели
+      }
+      ```
+
+5.  **Запустите коннектор:**
+    ```bash
+    python app.py
+    ```
+    Коннектор запустится на порту `11434`, который по умолчанию использует Ollama.
+
+6.  **Важно:** Пока запущен коннектор, **локальный сервер Ollama не требуется**. Вы можете запускать основное приложение `interview-ai`, и оно будет автоматически работать через OpenRouter.
 
 ## Использование
 
